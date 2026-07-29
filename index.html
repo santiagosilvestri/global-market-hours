@@ -11,6 +11,9 @@
     <title>Global Market Hours</title>
     <link rel="icon" href="favicon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="styles.css" />
+    <script src="vendor/d3-array.min.js" defer></script>
+    <script src="vendor/d3-geo.min.js" defer></script>
+    <script src="vendor/topojson-client.min.js" defer></script>
     <script src="app.js" defer></script>
   </head>
   <body>
@@ -39,9 +42,39 @@
       <section class="panel local-panel" aria-labelledby="local-title">
         <div class="panel-glow" aria-hidden="true"></div>
         <div class="globe-shape" aria-hidden="true">
-          <span class="globe-orbit orbit-one"></span>
-          <span class="globe-orbit orbit-two"></span>
-          <span class="location-pulse"></span>
+          <svg id="local-globe" class="local-globe" viewBox="0 0 320 320">
+            <defs>
+              <radialGradient id="globe-ocean" cx="32%" cy="28%">
+                <stop offset="0" stop-color="#173b78" />
+                <stop offset=".55" stop-color="#0b1b39" />
+                <stop offset="1" stop-color="#040b17" />
+              </radialGradient>
+              <linearGradient id="globe-land-fill" x1="0" x2="1" y1="0" y2="1">
+                <stop offset="0" stop-color="#446d9e" />
+                <stop offset="1" stop-color="#173354" />
+              </linearGradient>
+              <radialGradient id="globe-vignette">
+                <stop offset=".61" stop-color="#000" stop-opacity="0" />
+                <stop offset="1" stop-color="#01040b" stop-opacity=".88" />
+              </radialGradient>
+              <clipPath id="globe-clip"><circle cx="160" cy="160" r="141" /></clipPath>
+              <filter id="globe-glow" x="-30%" y="-30%" width="160%" height="160%">
+                <feGaussianBlur stdDeviation="5" result="blur" />
+                <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+              </filter>
+            </defs>
+            <circle class="globe-ocean" cx="160" cy="160" r="141" />
+            <g clip-path="url(#globe-clip)">
+              <path id="globe-graticule" class="globe-graticule" />
+              <path id="globe-land" class="globe-land" />
+              <g id="globe-location-marker" class="globe-location-marker" visibility="hidden">
+                <circle r="12" class="globe-location-halo" />
+                <circle r="5" class="globe-location-dot" />
+              </g>
+            </g>
+            <circle class="globe-vignette" cx="160" cy="160" r="141" />
+            <circle class="globe-rim" cx="160" cy="160" r="141" />
+          </svg>
         </div>
 
         <div class="local-content">
@@ -192,10 +225,15 @@
             class="world-map"
             viewBox="0 0 1000 500"
             role="img"
-            aria-label="Mapa mundial estilizado"
+            aria-label="Mapa mundial con continentes reales"
             preserveAspectRatio="none"
           >
             <defs>
+              <radialGradient id="map-ocean" cx="47%" cy="42%">
+                <stop offset="0" stop-color="#102544" />
+                <stop offset=".62" stop-color="#0a1528" />
+                <stop offset="1" stop-color="#050b15" />
+              </radialGradient>
               <linearGradient id="land-fill" x1="0" x2="1" y1="0" y2="1">
                 <stop offset="0" stop-color="#202a3c" />
                 <stop offset="1" stop-color="#111827" />
@@ -207,17 +245,11 @@
                 <feDropShadow dx="0" dy="7" stdDeviation="10" flood-color="#000" flood-opacity=".38" />
               </filter>
             </defs>
+            <rect class="map-ocean" width="1000" height="500" />
             <rect width="1000" height="500" fill="url(#map-grid)" opacity=".42" />
-            <g fill="url(#land-fill)" stroke="#2b3850" stroke-width="2" filter="url(#land-shadow)">
-              <path d="M70 108 101 72l60-31 69 5 40 21 58 5 38 28-16 32-47 11-22 31-28 10-8 33-32 19-40-15-28-33-34-17-22-31Z" />
-              <path d="m255 227 35 12 31 34 6 39 27 27-14 47-27 53-25 23-12-49 2-38-20-40-17-58Z" />
-              <path d="m448 96 34-18 49 4 28 20-12 27-39 13-42-10-26-18Z" />
-              <path d="m475 153 42-13 49 17 25 47-4 59-35 72-35 39-30-39-7-63-28-47 8-41Z" />
-              <path d="m539 103 43-42 83-22 74 11 39 30 69 19 55 44-13 33-50 5-27 30-56 2-25 39-50-10-34-36-34 12-41-20-12-39-32-20Z" />
-              <path d="m793 318 48-22 53 7 33 33-16 42-52 19-54-18-30-35Z" />
-              <path d="m385 56 28-36 38 8 13 35-25 26-39-9Z" />
-              <path d="m907 237 18-15 23 8-2 22-24 10Z" />
-            </g>
+            <path id="world-graticule" class="world-graticule" />
+            <path id="world-land" class="world-land" filter="url(#land-shadow)" />
+            <path id="world-boundaries" class="world-boundaries" />
           </svg>
 
           <div id="map-markers" class="map-markers"></div>

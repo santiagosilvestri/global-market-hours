@@ -115,6 +115,17 @@
       sessions: [[600, 1015]],
       labelPosition: "right",
     },
+    {
+      id: "buenos-aires",
+      name: "Buenos Aires",
+      code: "BYMA",
+      timeZone: "America/Argentina/Buenos_Aires",
+      latitude: -34.6037,
+      longitude: -58.3816,
+      color: "#72c9ff",
+      sessions: [[630, 1020]],
+      labelPosition: "left",
+    },
   ];
 
   const elements = {
@@ -140,6 +151,12 @@
     timelineDate: document.querySelector("#timeline-date"),
     mapMarkers: document.querySelector("#map-markers"),
     marketDetail: document.querySelector("#market-detail"),
+    worldLand: document.querySelector("#world-land"),
+    worldBoundaries: document.querySelector("#world-boundaries"),
+    worldGraticule: document.querySelector("#world-graticule"),
+    globeLand: document.querySelector("#globe-land"),
+    globeGraticule: document.querySelector("#globe-graticule"),
+    globeLocationMarker: document.querySelector("#globe-location-marker"),
   };
 
   const state = {
@@ -148,6 +165,10 @@
     selectedMarketId: null,
     timelineDateKey: "",
     hasAutoScrolled: false,
+    geography: null,
+    boundaries: null,
+    mapProjection: null,
+    userCoordinates: null,
   };
 
   const formatterCache = new Map();
@@ -580,6 +601,93 @@
     state.hasAutoScrolled = true;
   }
 
+  async function loadGeography() {
+    if (!window.d3 || !window.topojson) return;
+
+    try {
+      const response = await fetch("vendor/world-110m.json", {
+        cache: "force-cache",
+      });
+      if (!response.ok) throw new Error("World geography unavailable");
+
+      const topology = await response.json();
+      const countries = topology.objects.countries;
+      state.geography = window.topojson.feature(topology, countries);
+      state.boundaries = window.topojson.mesh(
+        topology,
+        countries,
+        (first, second) => first !== second,
+      );
+      renderGeography();
+    } catch {
+      elements.marketDetail.textContent =
+        "No se pudo cargar la capa geográfica del mapa.";
+    }
+  }
+
+  function renderGeography() {
+    if (!state.geography || !window.d3) return;
+
+    const mapProjection = window.d3
+      .geoEquirectangular()
+      .fitExtent(
+        [
+          [10, 9],
+          [990, 491],
+        ],
+        state.geography,
+      );
+    const mapPath = window.d3.geoPath(mapProjection);
+    const graticule = window.d3.geoGraticule10();
+
+    state.mapProjection = mapProjection;
+    elements.worldLand.setAttribute("d", mapPath(state.geography));
+    elements.worldBoundaries.setAttribute("d", mapPath(state.boundaries));
+    elements.worldGraticule.setAttribute("d", mapPath(graticule));
+    updateMapMarkerPositions();
+    renderLocalGlobe();
+  }
+
+  function renderLocalGlobe() {
+    if (!state.geography || !window.d3) return;
+
+    const center = state.userCoordinates || {
+      latitude: 20,
+      longitude: -25,
+    };
+    const projection = window.d3
+      .geoOrthographic()
+      .translate([160, 160])
+      .scale(141)
+      .rotate([-center.longitude, -center.latitude])
+      .clipAngle(90)
+      .precision(0.3);
+    const globePath = window.d3.geoPath(projection);
+
+    elements.globeLand.setAttribute("d", globePath(state.geography));
+    elements.globeGraticule.setAttribute(
+      "d",
+      globePath(window.d3.geoGraticule10()),
+    );
+
+    if (state.userCoordinates) {
+      const pin = projection([
+        state.userCoordinates.longitude,
+        state.userCoordinates.latitude,
+      ]);
+      if (pin) {
+        elements.globeLocationMarker.setAttribute(
+          "transform",
+          `translate(${pin[0]}, ${pin[1]})`,
+        );
+        elements.globeLocationMarker.setAttribute("visibility", "visible");
+        return;
+      }
+    }
+
+    elements.globeLocationMarker.setAttribute("visibility", "hidden");
+  }
+
   function renderMapMarkers() {
     elements.mapMarkers.replaceChildren();
 
@@ -589,8 +697,6 @@
       marker.type = "button";
       marker.dataset.market = market.id;
       marker.dataset.labelPosition = market.labelPosition;
-      marker.style.left = `${((market.longitude + 180) / 360) * 100}%`;
-      marker.style.top = `${((90 - market.latitude) / 180) * 100}%`;
       marker.style.setProperty("--marker-color", market.color);
       marker.setAttribute(
         "aria-label",
@@ -603,6 +709,26 @@
       marker.append(label);
       marker.addEventListener("click", () => selectMarket(market.id));
       elements.mapMarkers.append(marker);
+    }
+
+    updateMapMarkerPositions();
+  }
+
+  function updateMapMarkerPositions() {
+    for (const market of MARKETS) {
+      const marker = elements.mapMarkers.querySelector(
+        `[data-market="${market.id}"]`,
+      );
+      if (!marker) continue;
+
+      const point = state.mapProjection?.([
+        market.longitude,
+        market.latitude,
+      ]);
+      const x = point ? (point[0] / 1000) * 100 : ((market.longitude + 180) / 360) * 100;
+      const y = point ? (point[1] / 500) * 100 : ((90 - market.latitude) / 180) * 100;
+      marker.style.left = `${x}%`;
+      marker.style.top = `${y}%`;
     }
   }
 
@@ -742,6 +868,11 @@
 
     navigator.geolocation.getCurrentPosition(
       async ({ coords }) => {
+        state.userCoordinates = {
+          latitude: coords.latitude,
+          longitude: coords.longitude,
+        };
+        renderLocalGlobe();
         const coordinates =
           `${coords.latitude.toFixed(3)}°, ${coords.longitude.toFixed(3)}°`;
         elements.locationName.textContent = coordinates;
@@ -791,6 +922,7 @@
   function initialize() {
     renderMapMarkers();
     renderTimeline(new Date());
+    loadGeography();
     elements.locationButton.addEventListener("click", detectLocation);
     detectLocation();
     tick();

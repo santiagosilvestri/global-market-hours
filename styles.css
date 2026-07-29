@@ -252,67 +252,58 @@ a {
   width: min(52%, 300px);
   aspect-ratio: 1;
   transform: translateY(-48%);
-  overflow: hidden;
-  border: 1px solid rgba(101, 153, 255, 0.58);
-  border-radius: 50%;
-  background:
-    radial-gradient(circle at 42% 39%, rgba(66, 120, 225, 0.2), transparent 14%),
-    radial-gradient(ellipse at 36% 35%, #162440 0 9%, transparent 9.8%),
-    radial-gradient(ellipse at 58% 47%, #182840 0 12%, transparent 12.8%),
-    radial-gradient(ellipse at 46% 66%, #111c2f 0 12%, transparent 12.8%),
-    radial-gradient(circle at 36% 41%, rgba(75, 137, 255, 0.6), transparent 42%),
-    #07101f;
-  box-shadow:
-    -18px 0 42px rgba(55, 115, 245, 0.2),
-    inset 18px 0 36px rgba(81, 135, 245, 0.18),
-    inset -28px -16px 42px rgba(0, 0, 0, 0.58);
+  filter: drop-shadow(-15px 0 28px rgba(60, 125, 255, 0.2));
   opacity: 0.9;
 }
 
-.globe-shape::before,
-.globe-shape::after {
-  position: absolute;
-  inset: 9% 0;
-  content: "";
-  border: 1px solid rgba(100, 150, 255, 0.22);
-  border-radius: 50%;
+.local-globe {
+  display: block;
+  width: 100%;
+  height: 100%;
 }
 
-.globe-shape::before {
-  inset: 0 23%;
+.globe-ocean {
+  fill: url(#globe-ocean);
 }
 
-.globe-shape::after {
-  inset: 34% 0;
+.globe-graticule {
+  fill: none;
+  stroke: rgba(136, 181, 255, 0.22);
+  stroke-width: 0.8;
 }
 
-.globe-orbit {
-  position: absolute;
-  inset: 18%;
-  border: 1px solid rgba(107, 155, 255, 0.23);
-  border-radius: 50%;
+.globe-land {
+  fill: url(#globe-land-fill);
+  stroke: rgba(100, 151, 211, 0.45);
+  stroke-width: 0.65;
+  stroke-linejoin: round;
 }
 
-.orbit-one {
-  transform: rotate(38deg) scaleX(1.5);
+.globe-vignette {
+  fill: url(#globe-vignette);
 }
 
-.orbit-two {
-  transform: rotate(-28deg) scaleY(1.45);
+.globe-rim {
+  fill: none;
+  stroke: rgba(130, 179, 255, 0.72);
+  stroke-width: 1.2;
+  filter: url(#globe-glow);
 }
 
-.location-pulse {
-  position: absolute;
-  top: 37%;
-  left: 42%;
-  width: 10px;
-  height: 10px;
-  border: 2px solid #d9e6ff;
-  border-radius: 50%;
-  background: #6091ff;
-  box-shadow:
-    0 0 0 8px rgba(79, 132, 250, 0.2),
-    0 0 25px rgba(95, 147, 255, 0.9);
+.globe-location-marker {
+  filter: url(#globe-glow);
+}
+
+.globe-location-halo {
+  fill: rgba(103, 158, 255, 0.22);
+  stroke: rgba(167, 204, 255, 0.85);
+  stroke-width: 1;
+}
+
+.globe-location-dot {
+  fill: #7ca9ff;
+  stroke: #eef5ff;
+  stroke-width: 1.7;
 }
 
 .local-content {
@@ -812,7 +803,7 @@ a {
   border: 1px solid rgba(130, 151, 188, 0.08);
   border-radius: 14px;
   background:
-    radial-gradient(circle at 55% 48%, rgba(26, 45, 75, 0.36), transparent 48%),
+    radial-gradient(circle at 55% 48%, rgba(35, 66, 110, 0.35), transparent 52%),
     #080e19;
 }
 
@@ -820,7 +811,29 @@ a {
   display: block;
   width: 100%;
   height: 100%;
-  opacity: 0.86;
+  opacity: 0.96;
+}
+
+.map-ocean {
+  fill: url(#map-ocean);
+}
+
+.world-graticule {
+  fill: none;
+  stroke: rgba(91, 129, 184, 0.14);
+  stroke-width: 0.8;
+}
+
+.world-land {
+  fill: url(#land-fill);
+  stroke: none;
+}
+
+.world-boundaries {
+  fill: none;
+  stroke: rgba(100, 129, 174, 0.48);
+  stroke-width: 0.7;
+  stroke-linejoin: round;
 }
 
 .map-markers {

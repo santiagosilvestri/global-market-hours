@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#07111f">
-  <meta name="description" content="A responsive world stock exchange clock with local times and opening countdowns.">
+  <meta name="description" content="Live world stock exchange hours, local market clocks and opening countdowns.">
   <title>Global Market Hours</title>
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="styles.css">
@@ -12,7 +12,7 @@
 <body>
   <div class="app-shell">
     <header class="topbar">
-      <a class="brand" href="#" aria-label="Global Market Hours home">
+      <a class="brand" href="#top" aria-label="Global Market Hours home">
         <span class="brand-mark" aria-hidden="true">
           <span class="brand-orbit"></span>
           <span class="brand-globe">◉</span>
@@ -24,9 +24,8 @@
       </a>
 
       <nav class="desktop-nav" aria-label="Main navigation">
-        <a class="active" href="#markets">Markets</a>
+        <a href="#markets">Markets</a>
         <a href="#timeline">World clock</a>
-        <a href="#about">About</a>
       </nav>
 
       <button class="icon-button" id="refreshButton" type="button" aria-label="Refresh market times" title="Refresh">
@@ -34,7 +33,7 @@
       </button>
     </header>
 
-    <main>
+    <main id="top">
       <section class="hero-grid" aria-labelledby="page-title">
         <article class="local-time-card glass-card">
           <div class="local-copy">
@@ -98,7 +97,7 @@
             <span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span><span>24:00</span>
           </div>
           <div class="timeline-chart" id="timelineChart" aria-label="Market sessions across a 24-hour local timeline"></div>
-          <p class="timeline-note">Standard weekday sessions. Exchange holidays and exceptional closures are not included in this prototype.</p>
+          <p class="timeline-note">The clock, countdowns and current-time marker update every second. Standard weekday sessions only; exchange holidays and exceptional closures are not included.</p>
         </article>
 
         <article class="map-card glass-card" aria-labelledby="map-title">
@@ -126,11 +125,8 @@
       </section>
 
       <section class="markets-section" id="markets" aria-labelledby="markets-title">
-        <div class="section-heading markets-heading">
-          <div>
-            <p class="eyebrow">Major exchanges</p>
-            <h2 id="markets-title">What is trading right now?</h2>
-          </div>
+        <div class="markets-toolbar">
+          <h2 id="markets-title">Major exchanges</h2>
           <div class="filters" role="group" aria-label="Market filters">
             <button type="button" class="filter-button active" data-filter="all">All</button>
             <button type="button" class="filter-button" data-filter="open">Open</button>
@@ -140,24 +136,16 @@
         <div class="markets-grid" id="marketsGrid"></div>
       </section>
 
-      <section class="about-card glass-card" id="about">
-        <div>
-          <p class="eyebrow">Static by design</p>
-          <h2>Built for GitHub Pages</h2>
-        </div>
-        <p>This demo runs entirely in the browser with HTML, CSS and JavaScript. It detects the visitor’s timezone and calculates each exchange’s standard session locally—no backend required.</p>
-      </section>
     </main>
 
     <footer>
       <p>Times are shown in <strong id="footerZone">your local timezone</strong>.</p>
-      <p>Educational prototype · Market schedules should be verified before trading.</p>
+      <p>Market schedules should be verified before trading.</p>
     </footer>
 
     <nav class="mobile-nav" aria-label="Mobile navigation">
-      <a class="active" href="#markets"><span>▥</span>Markets</a>
+      <a href="#markets"><span>▥</span>Markets</a>
       <a href="#timeline"><span>◷</span>Clock</a>
-      <a href="#about"><span>ⓘ</span>About</a>
     </nav>
   </div>
 

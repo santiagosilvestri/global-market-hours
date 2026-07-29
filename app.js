@@ -14,8 +14,8 @@ const MARKETS = [
   { id: "ASX", name: "Australian Securities Exchange", city: "Sydney", zone: "Australia/Sydney", sessions: [["10:00", "16:00"]], color: "#8568ff" }
 ];
 
-const DAY_MS = 86_400_000;
 const MINUTE_MS = 60_000;
+const SECOND_MS = 1_000;
 const formatterCache = new Map();
 const hasDOM = typeof document !== "undefined";
 const ui = hasDOM ? {
@@ -37,8 +37,12 @@ const ui = hasDOM ? {
 } : null;
 
 const userZone = hasDOM ? (Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC") : "UTC";
+const cardElements = new Map();
 let activeFilter = "all";
 let state = [];
+let lastStateMinute = null;
+let renderedTimelineDay = null;
+let tickTimer = null;
 
 function getFormatter(zone, options) {
   const key = `${zone}:${JSON.stringify(options)}`;
@@ -129,7 +133,7 @@ function getMarketState(market, now) {
   const todayEvents = marketDayEvents(market, currentDay);
 
   if (active) {
-    return { market, status: "open", transition: active.end, activeEvent: active, nextOpen: next?.start || null };
+    return { market, status: "open", transition: active.end };
   }
 
   const previousToday = todayEvents.filter(event => event.end <= now).at(-1);
@@ -139,20 +143,19 @@ function getMarketState(market, now) {
   return {
     market,
     status: isBreak ? "break" : "closed",
-    transition: isBreak ? nextToday.start : next?.start || null,
-    activeEvent: null,
-    nextOpen: isBreak ? nextToday.start : next?.start || null
+    transition: isBreak ? nextToday.start : next?.start || null
   };
 }
 
 function formatDuration(ms) {
   if (!Number.isFinite(ms) || ms < 0) return "—";
-  const totalMinutes = Math.max(0, Math.ceil(ms / MINUTE_MS));
-  const days = Math.floor(totalMinutes / 1440);
-  const hours = Math.floor((totalMinutes % 1440) / 60);
-  const minutes = totalMinutes % 60;
-  if (days > 0) return `${days}d ${String(hours).padStart(2, "0")}h`;
-  return `${String(hours).padStart(2, "0")}h ${String(minutes).padStart(2, "0")}m`;
+  const totalSeconds = Math.max(0, Math.ceil(ms / SECOND_MS));
+  const days = Math.floor(totalSeconds / 86_400);
+  const hours = Math.floor((totalSeconds % 86_400) / 3_600);
+  const minutes = Math.floor((totalSeconds % 3_600) / 60);
+  const seconds = totalSeconds % 60;
+  const clock = `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+  return days > 0 ? `${days}d ${clock}` : clock;
 }
 
 function formatMarketTime(date, zone, includeSeconds = false) {
@@ -189,14 +192,13 @@ function transitionText(item, now) {
   return `Opens in ${formatDuration(item.transition - now)}`;
 }
 
-function createSparkPath(seed, positive) {
-  let value = 24 + (seed % 9);
+function createSparkPath(seed) {
   const points = [];
   for (let x = 0; x <= 28; x += 1) {
     const wave = Math.sin((x + seed) * 0.8) * 3;
-    const drift = positive ? x * 0.4 : x * -0.08;
+    const drift = x * 0.22;
     const jitter = ((x * seed * 17) % 9) - 4;
-    value = Math.max(6, Math.min(44, 22 + wave + drift + jitter * 0.42));
+    const value = Math.max(6, Math.min(44, 22 + wave + drift + jitter * 0.42));
     points.push([x * 10, 48 - value]);
   }
   const line = points.map(([x, y], index) => `${index ? "L" : "M"}${x},${y.toFixed(1)}`).join(" ");
@@ -214,22 +216,24 @@ function renderCards(now) {
       fragment.querySelector(".exchange-meta").textContent = item.market.city;
       const hours = item.market.sessions.map(([start, end]) => `${start}–${end}`).join(" · ");
       fragment.querySelector(".session-hours").textContent = hours;
-      const spark = createSparkPath(item.market.id.split("").reduce((sum, char) => sum + char.charCodeAt(0), 0), item.status === "open");
+      const spark = createSparkPath(item.market.id.split("").reduce((sum, char) => sum + char.charCodeAt(0), 0));
       fragment.querySelector(".spark-line").setAttribute("d", spark.line);
       fragment.querySelector(".spark-area").setAttribute("d", spark.area);
       ui.marketsGrid.appendChild(fragment);
+      cardElements.set(item.market.id, ui.marketsGrid.lastElementChild);
     }
   }
 
   for (const item of state) {
-    const card = ui.marketsGrid.querySelector(`[data-market-id="${item.market.id}"]`);
+    const card = cardElements.get(item.market.id);
+    if (!card) continue;
     card.classList.remove("open", "closed", "break");
     card.classList.add(item.status);
     card.style.setProperty("--market-color", item.market.color);
     const pill = card.querySelector(".status-pill");
     pill.className = `status-pill ${item.status}`;
     pill.textContent = statusText(item);
-    card.querySelector(".market-local-time").textContent = formatMarketTime(now, item.market.zone);
+    card.querySelector(".market-local-time").textContent = formatMarketTime(now, item.market.zone, true);
     card.querySelector(".countdown-label").textContent = transitionText(item, now);
     card.querySelector(".timezone-label").textContent = `${getTimeZoneLabel(item.market.zone, now)} · ${item.market.zone}`;
     card.classList.toggle("is-hidden", activeFilter !== "all" && (activeFilter === "open" ? item.status !== "open" : item.status === "open"));
@@ -262,14 +266,29 @@ function userDayBounds(now) {
   return { start, end };
 }
 
+function timelineDayKey(now) {
+  const local = partsAt(now, userZone);
+  return `${local.year}-${String(local.month).padStart(2, "0")}-${String(local.day).padStart(2, "0")}`;
+}
+
+function updateTimelineNow(now) {
+  const nowLine = ui.timelineChart.querySelector(".timeline-now");
+  if (!nowLine) return;
+
+  const { start: dayStart, end: dayEnd } = userDayBounds(now);
+  const position = Math.min(100, Math.max(0, ((now - dayStart) / (dayEnd - dayStart)) * 100));
+  nowLine.style.left = `${position}%`;
+  nowLine.dataset.label = formatMarketTime(now, userZone, true);
+  nowLine.classList.toggle("edge-left", position < 7);
+  nowLine.classList.toggle("edge-right", position > 93);
+}
+
 function renderTimeline(now) {
   ui.timelineChart.replaceChildren();
   const { start: dayStart, end: dayEnd } = userDayBounds(now);
   const duration = dayEnd - dayStart;
   const nowLine = document.createElement("div");
   nowLine.className = "timeline-now";
-  nowLine.style.left = `${Math.min(100, Math.max(0, ((now - dayStart) / duration) * 100))}%`;
-  nowLine.dataset.label = formatMarketTime(now, userZone);
   ui.timelineChart.appendChild(nowLine);
 
   const timelineMarkets = ["ASX", "TSE", "HKEX", "LSE", "NYSE"];
@@ -300,15 +319,47 @@ function renderTimeline(now) {
     }
     ui.timelineChart.appendChild(row);
   }
+
+  renderedTimelineDay = timelineDayKey(now);
+  updateTimelineNow(now);
 }
 
-function updateAll() {
-  const now = new Date();
-  updateLocalClock(now);
+function refreshState(now, force = false) {
+  const minute = Math.floor(now.getTime() / MINUTE_MS);
+  const transitionReached = state.some(item => item.transition && now >= item.transition);
+
+  if (!force && state.length && minute === lastStateMinute && !transitionReached) return;
+
   state = MARKETS.map(market => getMarketState(market, now));
+  lastStateMinute = minute;
+}
+
+function updateAll(now = new Date(), force = false) {
+  updateLocalClock(now);
+  refreshState(now, force);
   updateSummary(now);
   renderCards(now);
-  renderTimeline(now);
+
+  if (force || renderedTimelineDay !== timelineDayKey(now) || !ui.timelineChart.children.length) {
+    renderTimeline(now);
+  } else {
+    updateTimelineNow(now);
+  }
+}
+
+function scheduleNextTick() {
+  window.clearTimeout(tickTimer);
+  const delay = SECOND_MS - (Date.now() % SECOND_MS) + 15;
+  tickTimer = window.setTimeout(() => {
+    updateAll();
+    scheduleNextTick();
+  }, delay);
+}
+
+function forceRefresh() {
+  lastStateMinute = null;
+  renderedTimelineDay = null;
+  updateAll(new Date(), true);
 }
 
 if (hasDOM) {
@@ -320,9 +371,13 @@ if (hasDOM) {
     });
   }
 
-  ui.refreshButton.addEventListener("click", updateAll);
-  updateAll();
-  setInterval(updateAll, 30_000);
+  ui.refreshButton.addEventListener("click", forceRefresh);
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) forceRefresh();
+  });
+
+  forceRefresh();
+  scheduleNextTick();
 }
 
 if (typeof module !== "undefined" && module.exports) {

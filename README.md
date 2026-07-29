@@ -5,10 +5,10 @@ A responsive static dashboard that shows the current local time, standard tradin
 ## Features
 
 - Detects the visitor's IANA timezone automatically.
-- Displays the current local time for every exchange.
+- Displays the current local time for every exchange and updates it every second.
 - Calculates `Open`, `Closed`, and intraday `Break` states.
-- Shows countdowns until the next session transition.
-- Includes a local 24-hour market-session timeline.
+- Shows live countdowns until the next session transition.
+- Includes a responsive local 24-hour market-session timeline with a moving current-time marker.
 - Responsive desktop and mobile layouts.
 - Runs entirely in the browser with no backend.
 

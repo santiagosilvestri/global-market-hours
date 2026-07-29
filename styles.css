@@ -24,6 +24,7 @@ body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
+  overflow-x: hidden;
   font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   color: var(--text);
   background:
@@ -44,6 +45,7 @@ body::before {
 button, a { font: inherit; }
 a { color: inherit; text-decoration: none; }
 button { color: inherit; }
+button:focus-visible, a:focus-visible { outline:2px solid var(--blue); outline-offset:3px; }
 
 .app-shell { width: min(100%, 1800px); margin: 0 auto; }
 .topbar {
@@ -123,8 +125,10 @@ h2 { margin-bottom: 0; font-size: clamp(20px, 2vw, 29px); letter-spacing: -.035e
 .timeline-scale span:nth-child(2), .timeline-scale span:nth-child(3), .timeline-scale span:nth-child(4) { text-align:center; }
 .timeline-scale span:last-child { text-align:right; }
 .timeline-chart { position:relative; min-height:250px; border-radius:16px; overflow:hidden; background:repeating-linear-gradient(90deg, rgba(255,255,255,.055) 0 1px, transparent 1px 4.1667%), linear-gradient(180deg,rgba(9,20,35,.96),rgba(7,15,27,.8)); }
-.timeline-now { position:absolute; top:0; bottom:0; width:1px; background:var(--blue); box-shadow:0 0 18px rgba(60,140,255,.65); z-index:4; }
-.timeline-now::before { content:attr(data-label); position:absolute; top:8px; left:50%; transform:translateX(-50%); padding:5px 8px; border-radius:7px; color:#fff; background:var(--blue); font-size:10px; font-weight:700; }
+.timeline-now { position:absolute; top:0; bottom:0; width:1px; background:var(--blue); box-shadow:0 0 18px rgba(60,140,255,.65); z-index:4; transition:left .98s linear; will-change:left; }
+.timeline-now::before { content:attr(data-label); position:absolute; top:8px; left:50%; transform:translateX(-50%); padding:5px 8px; border-radius:7px; color:#fff; background:var(--blue); font-size:10px; font-weight:700; font-variant-numeric:tabular-nums; }
+.timeline-now.edge-left::before { left:0; transform:translateX(0); }
+.timeline-now.edge-right::before { left:0; transform:translateX(-100%); }
 .timeline-row { position:relative; height:44px; margin:0 12px; }
 .timeline-row:first-of-type { margin-top:38px; }
 .timeline-label { position:absolute; left:0; top:50%; transform:translateY(-50%); z-index:3; width:84px; color:#d4ddeb; font-size:11px; font-weight:600; pointer-events:none; text-shadow:0 1px 3px #000; }
@@ -141,7 +145,7 @@ h2 { margin-bottom: 0; font-size: clamp(20px, 2vw, 29px); letter-spacing: -.035e
 .p-ny { left:19%; top:39%; }.p-london { left:44%; top:25%; }.p-madrid { left:46%; top:37%; }.p-frankfurt { left:50%; top:29%; }.p-tokyo { left:83%; top:39%; }.p-hk { left:77%; top:53%; }.p-sydney { left:86%; top:78%; }.p-sp { left:29%; top:74%; }
 
 .markets-section { padding-top:48px; }
-.markets-heading { align-items:center; }
+.markets-toolbar { display:flex; align-items:center; justify-content:space-between; gap:18px; margin-bottom:20px; }
 .filters { display:flex; gap:6px; padding:5px; border:1px solid var(--border); border-radius:999px; background:rgba(9,20,34,.75); }
 .filter-button { border:0; border-radius:999px; padding:9px 15px; color:var(--muted); background:transparent; cursor:pointer; font-size:12px; }
 .filter-button.active { color:#fff; background:rgba(60,140,255,.18); }
@@ -173,8 +177,6 @@ h2 { margin-bottom: 0; font-size: clamp(20px, 2vw, 29px); letter-spacing: -.035e
 .market-card.closed .countdown-label { color:var(--red); }
 .market-card.break .countdown-label { color:var(--amber); }
 .timezone-label { color:#6e8197; font-size:10px; }
-.about-card { display:grid; grid-template-columns:.7fr 1.3fr; gap:48px; align-items:center; margin-top:48px; padding:32px; border-radius:var(--radius-lg); }
-.about-card p:last-child { margin:0; color:#9eafc2; line-height:1.7; }
 footer { display:flex; justify-content:space-between; gap:24px; width:min(calc(100% - 40px),var(--max-width)); margin:0 auto; padding:24px 0 42px; border-top:1px solid var(--border); color:#718399; font-size:11px; }
 footer p { margin:0; }
 .mobile-nav { display:none; }
@@ -208,21 +210,24 @@ footer p { margin:0; }
   .countdown { font-size:21px; }
   .timeline-card { padding:20px 14px; overflow:hidden; }
   .section-heading { align-items:flex-start; }
-  .timeline-chart { min-width:620px; }
-  .timeline-card { overflow-x:auto; }
-  .timeline-card .section-heading, .timeline-card .timeline-scale, .timeline-card .timeline-note { min-width:620px; }
+  .timeline-chart { min-width:0; min-height:232px; }
+  .timeline-row { height:36px; margin:0 6px; }
+  .timeline-row:first-of-type { margin-top:42px; }
+  .timeline-label { left:5px; width:58px; font-size:8px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .timeline-bar { top:6px; height:24px; }
+  .timeline-now::before { padding:4px 6px; font-size:8px; }
   .markets-section { padding-top:36px; }
-  .markets-heading { display:block; }
-  .filters { width:max-content; margin-top:18px; }
+  .markets-toolbar { align-items:flex-start; flex-direction:column; margin-bottom:16px; }
+  .filters { width:100%; }
+  .filter-button { flex:1; }
   .markets-grid { grid-template-columns:1fr; }
   .market-card { padding:17px; }
-  .about-card { grid-template-columns:1fr; gap:14px; margin-top:36px; padding:24px; }
   footer { display:block; width:min(calc(100% - 24px),var(--max-width)); padding-bottom:18px; line-height:1.6; }
   footer p + p { margin-top:8px; }
-  .mobile-nav { position:fixed; left:50%; bottom:10px; z-index:60; display:grid; grid-template-columns:repeat(3,1fr); width:min(calc(100% - 24px),430px); transform:translateX(-50%); border:1px solid var(--border); border-radius:20px; background:rgba(6,15,27,.92); box-shadow:0 20px 55px rgba(0,0,0,.48); backdrop-filter:blur(20px); }
+  .mobile-nav { position:fixed; left:50%; bottom:10px; z-index:60; display:grid; grid-template-columns:repeat(2,1fr); width:min(calc(100% - 24px),360px); transform:translateX(-50%); overflow:hidden; border:1px solid var(--border); border-radius:20px; background:rgba(6,15,27,.92); box-shadow:0 20px 55px rgba(0,0,0,.48); backdrop-filter:blur(20px); }
   .mobile-nav a { display:grid; place-items:center; gap:4px; padding:11px 6px; color:#8496aa; font-size:9px; }
+  .mobile-nav a + a { border-left:1px solid var(--border); }
   .mobile-nav a span { font-size:18px; }
-  .mobile-nav a.active { color:var(--blue); }
 }
 
 @media (max-width:430px) {
@@ -232,6 +237,8 @@ footer p { margin:0; }
   .globe-visual { width:92%; right:-36%; }
   .market-time-row { align-items:flex-start; }
   .session-hours { max-width:48%; }
+  .market-card-bottom { align-items:flex-start; flex-direction:column; gap:6px; }
+  .timezone-label { width:100%; overflow:hidden; text-align:left; text-overflow:ellipsis; white-space:nowrap; }
 }
 
 @media (prefers-reduced-motion: reduce) {

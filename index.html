@@ -1,186 +1,252 @@
 <!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#07111f">
-  <meta name="description" content="Live world stock exchange hours, local market clocks and opening countdowns.">
-  <title>Global Market Hours</title>
-  <link rel="icon" href="favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="styles.css">
-</head>
-<body>
-  <div class="app-shell">
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Horarios en vivo de las principales bolsas del mundo, adaptados a tu ubicación y zona horaria."
+    />
+    <meta name="theme-color" content="#070b14" />
+    <title>Global Market Hours</title>
+    <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="styles.css" />
+    <script src="app.js" defer></script>
+  </head>
+  <body>
     <header class="topbar">
-      <a class="brand" href="#top" aria-label="Global Market Hours home">
+      <a class="brand" href="#main-content" aria-label="Ir al panel principal">
         <span class="brand-mark" aria-hidden="true">
-          <span class="brand-orbit"></span>
-          <span class="brand-globe">◉</span>
+          <span></span>
         </span>
-        <span>
+        <span class="brand-copy">
           <strong>Global Market Hours</strong>
           <small>World exchange clock</small>
         </span>
       </a>
 
-      <nav class="desktop-nav" aria-label="Main navigation">
-        <a href="#markets">Markets</a>
-        <a href="#timeline">World clock</a>
-      </nav>
-
-      <button class="icon-button" id="refreshButton" type="button" aria-label="Refresh market times" title="Refresh">
-        <span aria-hidden="true">↻</span>
-      </button>
+      <div class="topbar-status">
+        <span class="live-badge">
+          <span class="live-dot" aria-hidden="true"></span>
+          En vivo
+        </span>
+        <span class="topbar-divider" aria-hidden="true"></span>
+        <span id="header-time" class="header-time">--:--:--</span>
+      </div>
     </header>
 
-    <main id="top">
-      <section class="hero-grid" aria-labelledby="page-title">
-        <article class="local-time-card glass-card">
-          <div class="local-copy">
-            <p class="eyebrow">Your local time</p>
-            <h1 id="page-title">Global sessions, one clock.</h1>
-            <p class="location-line"><span id="localCity">Local time</span><span class="dot">•</span><span id="localZone">Detecting…</span></p>
-            <time class="hero-time" id="localTime">--:--:--</time>
-            <p class="hero-date" id="localDate">Loading date…</p>
+    <main id="main-content" class="dashboard">
+      <section class="panel local-panel" aria-labelledby="local-title">
+        <div class="panel-glow" aria-hidden="true"></div>
+        <div class="globe-shape" aria-hidden="true">
+          <span class="globe-orbit orbit-one"></span>
+          <span class="globe-orbit orbit-two"></span>
+          <span class="location-pulse"></span>
+        </div>
+
+        <div class="local-content">
+          <div class="eyebrow-row">
+            <p class="eyebrow" id="local-title">Tu hora local</p>
+            <button
+              id="location-button"
+              class="location-button"
+              type="button"
+              aria-label="Volver a detectar mi ubicación"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 2v3M12 19v3M2 12h3M19 12h3" />
+                <circle cx="12" cy="12" r="5" />
+              </svg>
+              Detectar
+            </button>
           </div>
 
-          <div class="globe-visual" aria-hidden="true">
-            <div class="globe-glow"></div>
-            <div class="globe">
-              <span class="continent c1"></span>
-              <span class="continent c2"></span>
-              <span class="continent c3"></span>
-              <span class="location-pulse"></span>
-            </div>
-          </div>
-        </article>
+          <h1 id="location-name" class="location-name">Detectando ubicación…</h1>
+          <p id="timezone-label" class="timezone-label">Zona horaria del dispositivo</p>
+          <time id="local-time" class="local-time" datetime="">--:--:--</time>
+          <p id="local-date" class="local-date">Cargando fecha local…</p>
 
-        <section class="summary-panel glass-card" aria-label="Market summary">
-          <article class="summary-item open-summary">
-            <span class="summary-icon">↗</span>
-            <div>
-              <p class="eyebrow">Markets open now</p>
-              <strong class="summary-value" id="openCount">0</strong>
-              <p id="openNames">Checking sessions…</p>
-            </div>
-          </article>
-          <article class="summary-item next-open-summary">
-            <span class="summary-icon">◷</span>
-            <div>
-              <p class="eyebrow">Next to open</p>
-              <strong class="summary-market" id="nextOpenName">—</strong>
-              <p class="countdown blue" id="nextOpenCountdown">—</p>
-            </div>
-          </article>
-          <article class="summary-item next-close-summary">
-            <span class="summary-icon">◴</span>
-            <div>
-              <p class="eyebrow">Next to close</p>
-              <strong class="summary-market" id="nextCloseName">—</strong>
-              <p class="countdown amber" id="nextCloseCountdown">—</p>
-            </div>
-          </article>
-        </section>
-      </section>
-
-      <section class="dashboard-grid">
-        <article class="timeline-card glass-card" id="timeline">
-          <div class="section-heading">
-            <div>
-              <p class="eyebrow">Today in your timezone</p>
-              <h2>Market session timeline</h2>
-            </div>
-            <span class="live-badge"><span></span> Live</span>
-          </div>
-
-          <div class="timeline-scale" aria-hidden="true">
-            <span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span><span>24:00</span>
-          </div>
-          <div class="timeline-chart" id="timelineChart" aria-label="Market sessions across a 24-hour local timeline"></div>
-          <p class="timeline-note">The clock, countdowns and current-time marker update every second. Standard weekday sessions only; exchange holidays and exceptional closures are not included.</p>
-        </article>
-
-        <article class="map-card glass-card" aria-labelledby="map-title">
-          <div class="section-heading compact">
-            <div>
-              <p class="eyebrow">Global pulse</p>
-              <h2 id="map-title">Financial centers</h2>
-            </div>
-          </div>
-          <div class="world-map" role="img" aria-label="Stylized world map with financial market locations">
-            <svg viewBox="0 0 900 430" aria-hidden="true">
-              <path class="map-land" d="M70 118l42-40 70-17 57 18 20 34-17 26-50 13-26 47-31 32-25-15-9-49-35-16zm182 105 31 8 24 29 2 63-20 52-26-23-13-71zm173-121 46-39 82 4 38 24 88 5 41 30-4 31-54 15-21 31-40-4-27 28-47-9-16-41-39-9-18-36zm92 131 36 5 19 38-7 78-32 42-32-46 4-69zm215 78 43-16 58 15 11 34-32 24-67-13-22-30z"/>
-              <path class="map-grid" d="M0 107h900M0 215h900M0 323h900M180 0v430M360 0v430M540 0v430M720 0v430"/>
-            </svg>
-            <div class="map-point p-ny" data-market="NYSE"><span></span><label>New York</label></div>
-            <div class="map-point p-london" data-market="LSE"><span></span><label>London</label></div>
-            <div class="map-point p-madrid" data-market="BME"><span></span><label>Madrid</label></div>
-            <div class="map-point p-frankfurt" data-market="XETRA"><span></span><label>Frankfurt</label></div>
-            <div class="map-point p-tokyo" data-market="TSE"><span></span><label>Tokyo</label></div>
-            <div class="map-point p-hk" data-market="HKEX"><span></span><label>Hong Kong</label></div>
-            <div class="map-point p-sydney" data-market="ASX"><span></span><label>Sydney</label></div>
-            <div class="map-point p-sp" data-market="B3"><span></span><label>São Paulo</label></div>
-          </div>
-        </article>
-      </section>
-
-      <section class="markets-section" id="markets" aria-labelledby="markets-title">
-        <div class="markets-toolbar">
-          <h2 id="markets-title">Major exchanges</h2>
-          <div class="filters" role="group" aria-label="Market filters">
-            <button type="button" class="filter-button active" data-filter="all">All</button>
-            <button type="button" class="filter-button" data-filter="open">Open</button>
-            <button type="button" class="filter-button" data-filter="closed">Closed</button>
+          <div class="location-meta">
+            <span class="meta-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24">
+                <path d="M12 21s6-5.25 6-12a6 6 0 1 0-12 0c0 6.75 6 12 6 12Z" />
+                <circle cx="12" cy="9" r="2" />
+              </svg>
+            </span>
+            <span id="location-detail">Esperando permiso del navegador</span>
           </div>
         </div>
-        <div class="markets-grid" id="marketsGrid"></div>
       </section>
 
+      <section
+        class="panel summary-panel"
+        aria-label="Resumen del estado de los mercados"
+        aria-live="polite"
+      >
+        <article class="summary-card summary-open">
+          <span class="summary-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24">
+              <path d="m4 16 5-5 3 3 7-8" />
+              <path d="M15 6h4v4" />
+            </svg>
+          </span>
+          <div class="summary-copy">
+            <p class="summary-label">Mercados abiertos</p>
+            <p id="open-count" class="summary-value">0</p>
+            <p id="open-list" class="summary-description">Calculando sesiones…</p>
+          </div>
+        </article>
+
+        <article class="summary-card summary-next">
+          <span class="summary-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24">
+              <circle cx="12" cy="12" r="8" />
+              <path d="M12 7v5l3 2" />
+            </svg>
+          </span>
+          <div class="summary-copy">
+            <p class="summary-label">Próximo en abrir</p>
+            <p id="next-open-name" class="summary-market">—</p>
+            <p class="summary-description">
+              Abre en
+              <strong id="next-open-countdown" class="countdown">--h --m --s</strong>
+            </p>
+          </div>
+        </article>
+
+        <article class="summary-card summary-close">
+          <span class="summary-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24">
+              <circle cx="12" cy="12" r="8" />
+              <path d="M12 7v5l4 2" />
+            </svg>
+          </span>
+          <div class="summary-copy">
+            <p class="summary-label">Próximo en cerrar</p>
+            <p id="next-close-name" class="summary-market">—</p>
+            <p id="next-close-copy" class="summary-description">
+              Cierra en
+              <strong id="next-close-countdown" class="countdown">--h --m --s</strong>
+            </p>
+          </div>
+        </article>
+      </section>
+
+      <section class="panel timeline-panel" aria-labelledby="timeline-title">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow" id="timeline-title">Línea global de sesiones</p>
+            <p class="panel-subtitle">Horarios convertidos a tu zona local</p>
+          </div>
+          <div class="heading-note">
+            <span class="info-icon" aria-hidden="true">i</span>
+            Sesiones regulares
+          </div>
+        </div>
+
+        <div
+          id="timeline-scroll"
+          class="timeline-scroll"
+          role="region"
+          aria-label="Cronograma de mercados, desplazable horizontalmente"
+          tabindex="0"
+        >
+          <div id="timeline-chart" class="timeline-chart">
+            <div id="timeline-axis" class="timeline-axis" aria-hidden="true"></div>
+            <div id="timeline-rows" class="timeline-rows"></div>
+            <div class="current-overlay" aria-hidden="true">
+              <div id="current-line" class="current-line">
+                <span id="current-time-pill" class="current-time-pill">--:--</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="timeline-footer">
+          <span>
+            <span class="legend-dot is-open" aria-hidden="true"></span>
+            Abierto
+          </span>
+          <span>
+            <span class="legend-dot is-closed" aria-hidden="true"></span>
+            Fuera de sesión
+          </span>
+          <span id="timeline-date">Hoy</span>
+        </div>
+      </section>
+
+      <section class="panel map-panel" aria-labelledby="map-title">
+        <div class="panel-heading map-heading">
+          <div>
+            <p class="eyebrow" id="map-title">Mapa de mercados</p>
+            <p class="panel-subtitle">Mismo color en mapa y cronograma</p>
+          </div>
+          <div class="map-key">
+            <span><i class="map-key-dot active"></i>Abierto</span>
+            <span><i class="map-key-dot"></i>Cerrado</span>
+          </div>
+        </div>
+
+        <div id="market-map" class="market-map">
+          <svg
+            class="world-map"
+            viewBox="0 0 1000 500"
+            role="img"
+            aria-label="Mapa mundial estilizado"
+            preserveAspectRatio="none"
+          >
+            <defs>
+              <linearGradient id="land-fill" x1="0" x2="1" y1="0" y2="1">
+                <stop offset="0" stop-color="#202a3c" />
+                <stop offset="1" stop-color="#111827" />
+              </linearGradient>
+              <pattern id="map-grid" width="62.5" height="62.5" patternUnits="userSpaceOnUse">
+                <path d="M62.5 0H0V62.5" fill="none" stroke="#223049" stroke-width="1" />
+              </pattern>
+              <filter id="land-shadow" x="-20%" y="-20%" width="140%" height="140%">
+                <feDropShadow dx="0" dy="7" stdDeviation="10" flood-color="#000" flood-opacity=".38" />
+              </filter>
+            </defs>
+            <rect width="1000" height="500" fill="url(#map-grid)" opacity=".42" />
+            <g fill="url(#land-fill)" stroke="#2b3850" stroke-width="2" filter="url(#land-shadow)">
+              <path d="M70 108 101 72l60-31 69 5 40 21 58 5 38 28-16 32-47 11-22 31-28 10-8 33-32 19-40-15-28-33-34-17-22-31Z" />
+              <path d="m255 227 35 12 31 34 6 39 27 27-14 47-27 53-25 23-12-49 2-38-20-40-17-58Z" />
+              <path d="m448 96 34-18 49 4 28 20-12 27-39 13-42-10-26-18Z" />
+              <path d="m475 153 42-13 49 17 25 47-4 59-35 72-35 39-30-39-7-63-28-47 8-41Z" />
+              <path d="m539 103 43-42 83-22 74 11 39 30 69 19 55 44-13 33-50 5-27 30-56 2-25 39-50-10-34-36-34 12-41-20-12-39-32-20Z" />
+              <path d="m793 318 48-22 53 7 33 33-16 42-52 19-54-18-30-35Z" />
+              <path d="m385 56 28-36 38 8 13 35-25 26-39-9Z" />
+              <path d="m907 237 18-15 23 8-2 22-24 10Z" />
+            </g>
+          </svg>
+
+          <div id="map-markers" class="map-markers"></div>
+          <div id="market-detail" class="market-detail" aria-live="polite">
+            Seleccioná un mercado para ver su hora local.
+          </div>
+        </div>
+      </section>
     </main>
 
-    <footer>
-      <p>Times are shown in <strong id="footerZone">your local timezone</strong>.</p>
-      <p>Market schedules should be verified before trading.</p>
+    <footer class="site-footer">
+      <p>
+        Sesiones bursátiles regulares de lunes a viernes. Los cierres festivos y
+        suspensiones extraordinarias no se calculan.
+      </p>
+      <p>
+        La ubicación no se almacena; el nombre de la ciudad se consulta mediante
+        <a
+          href="https://www.openstreetmap.org/copyright"
+          target="_blank"
+          rel="noreferrer"
+        >© OpenStreetMap</a>
+      </p>
     </footer>
 
-    <nav class="mobile-nav" aria-label="Mobile navigation">
-      <a href="#markets"><span>▥</span>Markets</a>
-      <a href="#timeline"><span>◷</span>Clock</a>
-    </nav>
-  </div>
-
-  <template id="marketCardTemplate">
-    <article class="market-card glass-card">
-      <div class="market-card-top">
-        <div class="exchange-id">
-          <span class="exchange-logo"></span>
-          <div>
-            <h3 class="exchange-name"></h3>
-            <p class="exchange-meta"></p>
-          </div>
-        </div>
-        <span class="status-pill"></span>
+    <noscript>
+      <div class="noscript-message">
+        Esta página necesita JavaScript para actualizar relojes y mercados en tiempo real.
       </div>
-      <div class="market-time-row">
-        <div>
-          <small>Local market time</small>
-          <strong class="market-local-time"></strong>
-        </div>
-        <div class="session-hours"></div>
-      </div>
-      <div class="sparkline" aria-hidden="true">
-        <svg viewBox="0 0 280 50" preserveAspectRatio="none">
-          <path class="spark-area"></path>
-          <path class="spark-line"></path>
-        </svg>
-      </div>
-      <div class="market-card-bottom">
-        <span class="countdown-label"></span>
-        <span class="timezone-label"></span>
-      </div>
-    </article>
-  </template>
-
-  <script src="app.js" defer></script>
-</body>
+    </noscript>
+  </body>
 </html>

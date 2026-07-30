@@ -481,13 +481,10 @@ a {
 .summary-value,
 .summary-market {
   margin: 0;
-  overflow: hidden;
   color: #f4f7fb;
   font-variant-numeric: tabular-nums;
   font-weight: 470;
   letter-spacing: -0.025em;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .summary-value {
@@ -496,8 +493,12 @@ a {
 }
 
 .summary-market {
+  display: -webkit-box;
+  overflow: hidden;
   font-size: clamp(1.1rem, 1.5vw, 1.5rem);
   line-height: 1.12;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 .summary-description {

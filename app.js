@@ -138,8 +138,11 @@
     locationButton: document.querySelector("#location-button"),
     openCount: document.querySelector("#open-count"),
     openList: document.querySelector("#open-list"),
+    nextOpenLabel: document.querySelector("#next-open-label"),
     nextOpenName: document.querySelector("#next-open-name"),
+    nextOpenCopy: document.querySelector("#next-open-copy"),
     nextOpenCountdown: document.querySelector("#next-open-countdown"),
+    nextCloseLabel: document.querySelector("#next-close-label"),
     nextCloseName: document.querySelector("#next-close-name"),
     nextCloseCountdown: document.querySelector("#next-close-countdown"),
     nextCloseCopy: document.querySelector("#next-close-copy"),
@@ -453,47 +456,78 @@
         extra > 0 ? `${visible} y ${extra} más` : visible;
     }
 
-    const nextOpen = closedMarkets
-      .map(({ market }) => ({
-        market,
-        opensAt: getNextOpen(market, now),
-      }))
-      .filter(({ opensAt }) => opensAt !== null)
-      .sort((a, b) => a.opensAt - b.opensAt)[0];
+    const nextOpen = getSoonestMarkets(
+      closedMarkets
+        .map(({ market }) => ({
+          market,
+          opensAt: getNextOpen(market, now),
+        }))
+        .filter(({ opensAt }) => opensAt !== null),
+      "opensAt",
+    );
 
     if (nextOpen) {
-      elements.nextOpenName.textContent =
-        `${nextOpen.market.name} (${nextOpen.market.code})`;
+      elements.nextOpenName.textContent = formatMarketNames(nextOpen.markets);
       elements.nextOpenCountdown.textContent = formatCountdown(
-        nextOpen.opensAt,
+        nextOpen.at,
         now.getTime(),
       );
+      elements.nextOpenLabel.textContent =
+        nextOpen.markets.length > 1 ? "Próximos en abrir" : "Próximo en abrir";
+      elements.nextOpenCopy.firstChild.textContent =
+        nextOpen.markets.length > 1 ? "Abren en " : "Abre en ";
     } else {
       elements.nextOpenName.textContent = "—";
       elements.nextOpenCountdown.textContent = "Sin datos";
+      elements.nextOpenLabel.textContent = "Próximo en abrir";
+      elements.nextOpenCopy.firstChild.textContent = "Abre en ";
     }
 
-    const nextClose = openMarkets
-      .filter(({ closeAt }) => closeAt)
-      .sort((a, b) => a.closeAt - b.closeAt)[0];
+    const nextClose = getSoonestMarkets(
+      openMarkets.filter(({ closeAt }) => closeAt),
+      "closeAt",
+    );
 
     if (nextClose) {
-      elements.nextCloseName.textContent =
-        `${nextClose.market.name} (${nextClose.market.code})`;
+      elements.nextCloseName.textContent = formatMarketNames(nextClose.markets);
       elements.nextCloseCountdown.textContent = formatCountdown(
-        nextClose.closeAt,
+        nextClose.at,
         now.getTime(),
       );
-      elements.nextCloseCopy.firstChild.textContent = "Cierra en ";
+      elements.nextCloseLabel.textContent =
+        nextClose.markets.length > 1 ? "Próximos en cerrar" : "Próximo en cerrar";
+      elements.nextCloseCopy.firstChild.textContent =
+        nextClose.markets.length > 1 ? "Cierran en " : "Cierra en ";
     } else {
       elements.nextCloseName.textContent = "Ninguno abierto";
       elements.nextCloseCountdown.textContent = "—";
+      elements.nextCloseLabel.textContent = "Próximo en cerrar";
       elements.nextCloseCopy.firstChild.textContent = "Próximo cierre ";
     }
 
     document.title = `${openMarkets.length} abiertos · Global Market Hours`;
     updateMapStatuses(statuses, now);
     updateTimelineActivity(now);
+  }
+
+  function getSoonestMarkets(markets, timeKey) {
+    const sorted = [...markets].sort((first, second) =>
+      first[timeKey] - second[timeKey],
+    );
+    const at = sorted[0]?.[timeKey];
+
+    if (typeof at !== "number") return null;
+
+    return {
+      at,
+      markets: sorted.filter((item) => item[timeKey] === at),
+    };
+  }
+
+  function formatMarketNames(markets) {
+    return markets
+      .map(({ market }) => `${market.name} (${market.code})`)
+      .join(" · ");
   }
 
   function renderTimeline(now = new Date()) {

@@ -80,6 +80,7 @@ a {
 
 .brand:focus-visible,
 .location-button:focus-visible,
+.clock-zone-select:focus-visible,
 .map-marker:focus-visible,
 .timeline-scroll:focus-visible {
   outline: 2px solid #7ba5ff;
@@ -131,9 +132,7 @@ a {
 }
 
 .brand-copy {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
+  display: block;
 }
 
 .brand-copy strong {
@@ -143,17 +142,10 @@ a {
   text-transform: uppercase;
 }
 
-.brand-copy small {
-  color: var(--muted);
-  font-size: 0.67rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
 .topbar-status {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 12px;
   color: var(--soft);
   font-size: 0.78rem;
 }
@@ -180,6 +172,49 @@ a {
   width: 1px;
   height: 20px;
   background: var(--panel-border);
+}
+
+.topbar-local-time {
+  min-width: 67px;
+  color: #dde5f4;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.05em;
+}
+
+.clock-picker {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+
+.clock-picker-label {
+  color: #7f8ba1;
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.clock-zone-select {
+  width: 154px;
+  min-width: 0;
+  padding: 5px 24px 5px 9px;
+  border: 1px solid rgba(121, 151, 207, 0.18);
+  border-radius: 8px;
+  color: #dfe7f5;
+  background:
+    linear-gradient(45deg, transparent 50%, #9ba8bd 50%) calc(100% - 14px) 50% / 5px 5px no-repeat,
+    linear-gradient(135deg, #9ba8bd 50%, transparent 50%) calc(100% - 9px) 50% / 5px 5px no-repeat,
+    rgba(12, 18, 31, 0.72);
+  font-size: 0.7rem;
+  line-height: 1.2;
+  cursor: pointer;
+  appearance: none;
+}
+
+.clock-zone-select:hover {
+  border-color: rgba(104, 150, 245, 0.4);
 }
 
 .header-time {
@@ -312,7 +347,13 @@ a {
   width: min(72%, 430px);
 }
 
-.eyebrow-row,
+.eyebrow-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+}
+
 .panel-heading {
   display: flex;
   align-items: flex-start;
@@ -333,7 +374,6 @@ a {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  margin-top: -5px;
   padding: 6px 9px;
   border: 1px solid rgba(113, 145, 203, 0.18);
   border-radius: 999px;
@@ -351,6 +391,11 @@ a {
   border-color: rgba(104, 150, 245, 0.46);
   color: #eef4ff;
   background: rgba(28, 48, 83, 0.7);
+}
+
+.location-button:disabled {
+  cursor: wait;
+  opacity: 0.66;
 }
 
 .location-button svg {
@@ -522,6 +567,22 @@ a {
   white-space: nowrap;
 }
 
+.open-market-list {
+  display: block;
+  margin: 10px 0 0;
+  padding: 0;
+  color: #8f9aaf;
+  font-size: 0.72rem;
+  line-height: 1.55;
+  list-style: none;
+}
+
+.open-market-list li {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .panel-heading {
   position: relative;
   z-index: 5;
@@ -644,13 +705,21 @@ a {
   position: relative;
   height: 24px;
   border-bottom: 1px solid rgba(132, 151, 184, 0.065);
-  background-image: repeating-linear-gradient(
-    to right,
-    transparent 0,
-    transparent calc(8.3333% - 1px),
-    var(--grid) calc(8.3333% - 1px),
-    var(--grid) 8.3333%
-  );
+  background-image:
+    repeating-linear-gradient(
+      to right,
+      transparent 0,
+      transparent calc(12.5% - 1px),
+      rgba(128, 148, 186, 0.13) calc(12.5% - 1px),
+      rgba(128, 148, 186, 0.13) 12.5%
+    ),
+    repeating-linear-gradient(
+      to right,
+      transparent 0,
+      transparent calc(4.1667% - 1px),
+      rgba(128, 148, 186, 0.075) calc(4.1667% - 1px),
+      rgba(128, 148, 186, 0.075) 4.1667%
+    );
 }
 
 .session-bar {
@@ -1072,6 +1141,7 @@ a {
   }
 
   .topbar {
+    gap: 10px;
     min-height: 58px;
     padding-inline: 14px;
   }
@@ -1086,22 +1156,33 @@ a {
   }
 
   .brand-copy strong {
+    display: block;
+    max-width: 132px;
+    overflow: hidden;
     font-size: 0.77rem;
-  }
-
-  .brand-copy small,
-  .topbar-divider {
-    display: none;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .topbar-status {
-    gap: 9px;
+    gap: 7px;
   }
 
   .live-badge {
     font-size: 0;
   }
 
+  .clock-picker-label {
+    display: none;
+  }
+
+  .clock-zone-select {
+    width: 106px;
+    padding-block: 5px;
+    font-size: 0.66rem;
+  }
+
+  .topbar-local-time,
   .header-time {
     min-width: 63px;
     font-size: 0.72rem;
@@ -1239,6 +1320,23 @@ a {
 }
 
 @media (max-width: 410px) {
+  .brand-copy strong {
+    max-width: 64px;
+  }
+
+  .live-badge {
+    display: none;
+  }
+
+  .clock-zone-select {
+    width: 92px;
+  }
+
+  .topbar-local-time,
+  .header-time {
+    min-width: 60px;
+  }
+
   .location-button {
     padding-inline: 7px;
     font-size: 0;

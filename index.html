@@ -23,8 +23,7 @@
           <span></span>
         </span>
         <span class="brand-copy">
-          <strong>Global Market Hours</strong>
-          <small>World exchange clock</small>
+          <strong>Global Market Hour</strong>
         </span>
       </a>
 
@@ -33,7 +32,18 @@
           <span class="live-dot" aria-hidden="true"></span>
           En vivo
         </span>
+        <span id="topbar-local-time" class="topbar-local-time">--:--:--</span>
         <span class="topbar-divider" aria-hidden="true"></span>
+        <label class="clock-picker" for="clock-zone-select">
+          <span class="clock-picker-label">Reloj</span>
+          <select
+            id="clock-zone-select"
+            class="clock-zone-select"
+            aria-label="Seleccionar reloj por bolsa"
+          >
+            <option value="new-york">Nueva York (NYSE)</option>
+          </select>
+        </label>
         <span id="header-time" class="header-time">--:--:--</span>
       </div>
     </header>
@@ -126,7 +136,9 @@
           <div class="summary-copy">
             <p class="summary-label">Mercados abiertos</p>
             <p id="open-count" class="summary-value">0</p>
-            <p id="open-list" class="summary-description">Calculando sesiones…</p>
+            <ul id="open-list" class="open-market-list" aria-label="Mercados abiertos">
+              <li>Calculando sesiones…</li>
+            </ul>
           </div>
         </article>
 

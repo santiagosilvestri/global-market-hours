@@ -1,13 +1,14 @@
 # Global Market Hours
 
 Panel estático y responsive para visualizar, en tiempo real, las sesiones
-regulares de nueve bolsas importantes del mundo.
+regulares de diez bolsas importantes del mundo.
 
 ## Funcionalidades
 
 - Reloj local que avanza continuamente.
+- Hora local fija en la barra superior y selector compacto de reloj por bolsa.
 - Geolocalización del navegador con alternativa segura si el permiso se rechaza.
-- Mercados abiertos, próximo mercado en abrir y próximo en cerrar.
+- Resumen de mercados abiertos, próximo mercado en abrir y próximo en cerrar.
 - Cuenta regresiva actualizada cada segundo.
 - Línea temporal de 24 horas convertida a la zona horaria del dispositivo.
 - Mapa mundial con el mismo color de cada mercado y estados abiertos/cerrados.

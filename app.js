@@ -130,6 +130,8 @@
 
   const elements = {
     headerTime: document.querySelector("#header-time"),
+    topbarLocalTime: document.querySelector("#topbar-local-time"),
+    clockZoneSelect: document.querySelector("#clock-zone-select"),
     localTime: document.querySelector("#local-time"),
     localDate: document.querySelector("#local-date"),
     locationName: document.querySelector("#location-name"),
@@ -172,6 +174,7 @@
     boundaries: null,
     mapProjection: null,
     userCoordinates: null,
+    selectedClockMarketId: "new-york",
   };
 
   const formatterCache = new Map();
@@ -409,7 +412,12 @@
   }
 
   function renderClock(now) {
+    const selectedMarket = MARKETS.find(
+      (market) => market.id === state.selectedClockMarketId,
+    );
+    const headerTimeZone = selectedMarket?.timeZone || MARKETS[0].timeZone;
     const fullTime = formatTime(now, state.userTimeZone, true);
+    const headerTime = formatTime(now, headerTimeZone, true);
     const formattedDate = capitalize(
       getFormatter(`date-${state.userTimeZone}`, {
         timeZone: state.userTimeZone,
@@ -427,7 +435,18 @@
         .formatToParts(now)
         .find((part) => part.type === "timeZoneName")?.value || "UTC";
 
-    elements.headerTime.textContent = fullTime;
+    elements.headerTime.textContent = headerTime;
+    elements.headerTime.title = selectedMarket
+      ? `${selectedMarket.name} (${selectedMarket.code}) · ${selectedMarket.timeZone.replaceAll(
+          "_",
+          " ",
+        )}`
+      : "";
+    elements.topbarLocalTime.textContent = fullTime;
+    elements.topbarLocalTime.title = `Tu hora local · ${state.userTimeZone.replaceAll(
+      "_",
+      " ",
+    )}`;
     elements.localTime.textContent = fullTime;
     elements.localTime.dateTime = now.toISOString();
     elements.localDate.textContent = formattedDate;
@@ -446,15 +465,7 @@
     const closedMarkets = statuses.filter((item) => !item.open);
 
     elements.openCount.textContent = String(openMarkets.length);
-    if (openMarkets.length === 0) {
-      elements.openList.textContent = "No hay sesiones regulares abiertas";
-    } else {
-      const names = openMarkets.map(({ market }) => market.name);
-      const visible = names.slice(0, 3).join(", ");
-      const extra = names.length - 3;
-      elements.openList.textContent =
-        extra > 0 ? `${visible} y ${extra} más` : visible;
-    }
+    renderOpenMarketsList(openMarkets);
 
     const nextOpen = getSoonestMarkets(
       closedMarkets
@@ -528,6 +539,49 @@
     return markets
       .map(({ market }) => `${market.name} (${market.code})`)
       .join(" · ");
+  }
+
+  function renderOpenMarketsList(openMarkets) {
+    elements.openList.replaceChildren();
+    elements.openList.classList.toggle("is-empty", openMarkets.length === 0);
+
+    if (openMarkets.length === 0) {
+      const item = document.createElement("li");
+      item.textContent = "No hay sesiones regulares abiertas";
+      elements.openList.append(item);
+      return;
+    }
+
+    const sortedMarkets = [...openMarkets].sort((first, second) =>
+      first.market.name.localeCompare(second.market.name, LOCALE),
+    );
+
+    for (const { market } of sortedMarkets) {
+      const item = document.createElement("li");
+      item.textContent = `${market.name} (${market.code})`;
+      elements.openList.append(item);
+    }
+  }
+
+  function populateClockZoneSelect() {
+    if (!elements.clockZoneSelect) return;
+
+    const options = [
+      ...MARKETS.map((market) => [
+        market.id,
+        `${market.name} (${market.code})`,
+      ]),
+    ];
+
+    elements.clockZoneSelect.replaceChildren(
+      ...options.map(([value, label]) => {
+        const option = document.createElement("option");
+        option.value = value;
+        option.textContent = label;
+        return option;
+      }),
+    );
+    elements.clockZoneSelect.value = state.selectedClockMarketId;
   }
 
   function renderTimeline(now = new Date()) {
@@ -954,9 +1008,14 @@
   }
 
   function initialize() {
+    populateClockZoneSelect();
     renderMapMarkers();
     renderTimeline(new Date());
     loadGeography();
+    elements.clockZoneSelect?.addEventListener("change", (event) => {
+      state.selectedClockMarketId = event.target.value;
+      renderClock(new Date());
+    });
     elements.locationButton.addEventListener("click", detectLocation);
     detectLocation();
     tick();

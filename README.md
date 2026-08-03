@@ -1,48 +1,39 @@
 # Global Market Hours
 
-Panel estático y responsive para visualizar, en tiempo real, las sesiones
-regulares de nueve bolsas importantes del mundo.
+A responsive static dashboard that shows the current local time, standard trading sessions for major world stock exchanges, and live countdowns until their next opening, break, resumption, or closing.
 
-## Funcionalidades
+## Features
 
-- Reloj local que avanza continuamente.
-- Geolocalización del navegador con alternativa segura si el permiso se rechaza.
-- Mercados abiertos, próximo mercado en abrir y próximo en cerrar.
-- Cuenta regresiva actualizada cada segundo.
-- Línea temporal de 24 horas convertida a la zona horaria del dispositivo.
-- Mapa mundial con el mismo color de cada mercado y estados abiertos/cerrados.
-- Cartografía vectorial local con continentes reales y globo centrado en la
-  ubicación autorizada del usuario.
-- Incluye Bolsas y Mercados Argentinos (BYMA), Buenos Aires.
-- Adaptación completa para escritorio, tablet y teléfono.
-- Sin backend, claves privadas, compilación ni dependencias.
+- Detects the visitor's IANA timezone automatically.
+- Optional browser location permission from the local-time card.
+- Compact top-bar clock that can switch between the user's time and each market's local time.
+- Displays every open exchange in a complete list without truncation.
+- Updates the main clock, market clocks, countdowns, and timeline marker every second.
+- Calculates `Open`, `Closed`, and intraday `Break` states.
+- Includes an hourly 24-hour timeline with responsive desktop and mobile layouts.
+- Runs entirely in the browser with no backend or API key.
 
-## Publicar en GitHub Pages
+The location button uses the browser's Geolocation API only after the user clicks it. The displayed timezone is still read from the device because the project does not send coordinates to an external reverse-geocoding service.
 
-1. Creá un repositorio nuevo en GitHub.
-2. Subí a la raíz del repositorio `index.html`, `styles.css`, `app.js`,
-   `favicon.svg`, `.nojekyll` y este `README.md`.
-3. Entrá en **Settings → Pages**.
-4. En **Build and deployment**, elegí **Deploy from a branch**.
-5. Seleccioná la rama `main`, la carpeta `/ (root)` y guardá.
+## Run locally
 
-GitHub publicará la dirección en pocos minutos. La geolocalización funciona allí
-porque GitHub Pages utiliza HTTPS.
+You can open `index.html` directly, but using a small local server is recommended:
 
-## Alcance de los horarios
+```bash
+python3 -m http.server 8000
+```
 
-La página calcula sesiones bursátiles regulares de lunes a viernes y respeta
-automáticamente los cambios de horario de verano mediante zonas IANA. No incluye
-feriados bursátiles, cierres anticipados, suspensiones extraordinarias, subastas
-ni sesiones extendidas. Antes de usarla para operar, verificá el calendario
-oficial de cada bolsa.
+Then open `http://localhost:8000`.
 
-El nombre de la ubicación se consulta desde el navegador mediante el servicio de
-geocodificación de OpenStreetMap. La aplicación no almacena la ubicación.
+## Publish on GitHub Pages
 
-## Datos geográficos y horarios
+1. Create a new GitHub repository.
+2. Upload `index.html`, `styles.css`, `app.js`, `favicon.svg`, and this README to the repository root.
+3. Open **Settings → Pages**.
+4. Under **Build and deployment**, select **Deploy from a branch**.
+5. Choose the `main` branch and `/ (root)` folder.
+6. Save. GitHub will display the public URL after deployment.
 
-Los contornos del mapa y del globo se incluyen localmente a partir de datos de
-Natural Earth, distribuidos por `world-atlas`; las licencias de los componentes
-geográficos están dentro de `vendor/`. El horario regular mostrado para BYMA es
-10:30–17:00 (GMT-3), según su [tabla oficial de horarios](https://www.byma.com.ar/mercado/horarios).
+## Important limitation
+
+This prototype uses standard Monday-to-Friday exchange hours. It does not yet include exchange holidays, early closes, emergency suspensions, or live price data. For a production trading tool, schedules should be sourced from an authoritative market-calendar service.

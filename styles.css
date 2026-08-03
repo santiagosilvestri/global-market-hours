@@ -1,3 +1,27 @@
+@font-face {
+  font-family: "Space Grotesk";
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  src: url("vendor/fonts/space-grotesk-latin-400-normal.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Space Grotesk";
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+  src: url("vendor/fonts/space-grotesk-latin-500-normal.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Space Grotesk";
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+  src: url("vendor/fonts/space-grotesk-latin-600-normal.woff2") format("woff2");
+}
+
 :root {
   color-scheme: dark;
   --background: #050912;
@@ -13,9 +37,11 @@
   --amber: #f2b84b;
   --label-width: 104px;
   --shadow: 0 22px 60px rgba(0, 0, 0, 0.24);
-  font-family:
-    Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI",
+  --font-ui:
+    ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
     sans-serif;
+  --font-display: "Space Grotesk", var(--font-ui);
+  font-family: var(--font-ui);
   font-synthesis: none;
 }
 
@@ -142,6 +168,10 @@ a {
   text-transform: uppercase;
 }
 
+.brand-copy-short {
+  display: none;
+}
+
 .topbar-status {
   display: flex;
   align-items: center;
@@ -177,8 +207,9 @@ a {
 .topbar-local-time {
   min-width: 67px;
   color: #dde5f4;
+  font-family: var(--font-display);
   font-variant-numeric: tabular-nums;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.03em;
 }
 
 .clock-picker {
@@ -220,8 +251,9 @@ a {
 .header-time {
   min-width: 67px;
   color: #dde5f4;
+  font-family: var(--font-display);
   font-variant-numeric: tabular-nums;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.03em;
 }
 
 .dashboard {
@@ -428,10 +460,11 @@ a {
   display: block;
   margin-top: 13px;
   color: #f7f9fd;
+  font-family: var(--font-display);
   font-size: clamp(2.55rem, 4.5vw, 4.25rem);
-  font-weight: 310;
+  font-weight: 400;
   font-variant-numeric: tabular-nums;
-  letter-spacing: 0.02em;
+  letter-spacing: 0;
   line-height: 1;
   text-shadow: 0 5px 25px rgba(5, 10, 20, 0.7);
 }
@@ -533,6 +566,7 @@ a {
 }
 
 .summary-value {
+  font-family: var(--font-display);
   font-size: 2.55rem;
   line-height: 0.9;
 }
@@ -559,10 +593,11 @@ a {
   display: block;
   margin-top: 2px;
   color: currentColor;
+  font-family: var(--font-display);
   font-size: clamp(1.02rem, 1.55vw, 1.38rem);
   font-variant-numeric: tabular-nums;
-  font-weight: 520;
-  letter-spacing: 0.035em;
+  font-weight: 500;
+  letter-spacing: 0.02em;
   line-height: 1.25;
   white-space: nowrap;
 }
@@ -680,8 +715,18 @@ a {
 }
 
 .market-row-label {
+  position: sticky;
+  left: 0;
+  z-index: 5;
   min-width: 0;
   padding-right: 13px;
+  padding-left: 2px;
+  background: linear-gradient(
+    to right,
+    rgba(10, 15, 26, 0.97) 0%,
+    rgba(10, 15, 26, 0.97) 82%,
+    rgba(10, 15, 26, 0) 100%
+  );
 }
 
 .market-row-label strong {
@@ -697,7 +742,7 @@ a {
 .market-row-label small {
   display: block;
   margin-top: 2px;
-  color: #69758b;
+  color: #7885a0;
   font-size: 0.55rem;
 }
 
@@ -795,9 +840,10 @@ a {
   color: #f4f8ff;
   background: #356fe7;
   box-shadow: 0 6px 16px rgba(21, 73, 180, 0.35);
+  font-family: var(--font-display);
   font-size: 0.6rem;
   font-variant-numeric: tabular-nums;
-  font-weight: 650;
+  font-weight: 600;
   transform: translateX(-50%);
 }
 
@@ -828,12 +874,13 @@ a {
 }
 
 .legend-dot.is-open {
-  background: #61d99d;
-  box-shadow: 0 0 8px rgba(97, 217, 157, 0.65);
+  background: #d7e0f2;
+  box-shadow: 0 0 8px rgba(215, 224, 242, 0.55);
 }
 
 .legend-dot.is-closed {
   background: #586277;
+  opacity: 0.7;
 }
 
 .map-heading {
@@ -859,8 +906,8 @@ a {
 }
 
 .map-key-dot.active {
-  background: #5fd89a;
-  box-shadow: 0 0 7px rgba(95, 216, 154, 0.7);
+  background: #d7e0f2;
+  box-shadow: 0 0 7px rgba(215, 224, 242, 0.6);
 }
 
 .market-map {
@@ -1155,13 +1202,13 @@ a {
     height: 32px;
   }
 
-  .brand-copy strong {
+  .brand-copy-full {
+    display: none;
+  }
+
+  .brand-copy-short {
     display: block;
-    max-width: 132px;
-    overflow: hidden;
-    font-size: 0.77rem;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    font-size: 0.8rem;
   }
 
   .topbar-status {
@@ -1178,8 +1225,13 @@ a {
 
   .clock-zone-select {
     width: 106px;
-    padding-block: 5px;
+    padding-block: 9px;
     font-size: 0.66rem;
+  }
+
+  .location-button {
+    min-height: 34px;
+    padding: 8px 11px;
   }
 
   .topbar-local-time,
@@ -1338,7 +1390,8 @@ a {
   }
 
   .location-button {
-    padding-inline: 7px;
+    min-width: 34px;
+    padding-inline: 9px;
     font-size: 0;
   }
 

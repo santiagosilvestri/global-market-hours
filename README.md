@@ -47,3 +47,11 @@ Los contornos del mapa y del globo se incluyen localmente a partir de datos de
 Natural Earth, distribuidos por `world-atlas`; las licencias de los componentes
 geográficos están dentro de `vendor/`. El horario regular mostrado para BYMA es
 10:30–17:00 (GMT-3), según su [tabla oficial de horarios](https://www.byma.com.ar/mercado/horarios).
+
+## Tipografía
+
+Los números protagonistas (reloj local, relojes de la topbar, contadores y
+mercados abiertos) usan Space Grotesk, empaquetada localmente en
+`vendor/fonts/` (licencia OFL en `vendor/LICENSE-space-grotesk.txt`). El resto
+de la interfaz usa la tipografía del sistema del dispositivo. No hay ninguna
+solicitud a Google Fonts ni a otro servicio externo en tiempo de ejecución.

@@ -2,7 +2,7 @@
   "use strict";
 
   const STORAGE_KEY = "gmh:layout:v4";
-  const STATE_VERSION = 5;
+  const STATE_VERSION = 6;
   const DRAG_THRESHOLD = 7;
 
   const PANEL_META = {
@@ -46,85 +46,39 @@
   };
   const MIN_SPAN = 2;
   const MAX_SPAN = 10;
+  const MIN_PANEL_SPANS = {
+    local: 2,
+    summary: 2,
+    timeline: 3,
+    map: 3,
+    worldclock: 2,
+    calendar: 2,
+  };
+  const RESPONSIVE_STACK_QUERY = "(max-width: 760px)";
   const MIN_ROW_HEIGHT = 96;
   const MAX_ROW_HEIGHT = 720;
   const ROW_HEIGHT_STEP = 12;
 
-  // Empaqueta paneles desconocidos de a pares. Los paneles actuales usan
-  // DEFAULT_SPANS, pero esto mantiene una salida razonable si se agrega un
-  // bloque experimental sin declarar su ancho base.
-  function packSpans(n) {
-    const spans = [];
-    let i = 0;
-    let pairIndex = 0;
-    while (i < n) {
-      const remaining = n - i;
-      if (remaining === 1) {
-        spans.push(MAX_SPAN);
-        i += 1;
-      } else {
-        const pair = pairIndex % 2 === 0 ? [4, 6] : [6, 4];
-        spans.push(pair[0], pair[1]);
-        i += 2;
-        pairIndex += 1;
-      }
-    }
-    return spans;
+  function minimumSpanFor(panelId) {
+    return MIN_PANEL_SPANS[panelId] ?? MIN_SPAN;
   }
 
-  // Empaqueta paneles con tamaños manuales sin forzar que cada fila cierre
-  // siempre en 10 unidades. Los divisores verticales ajustan solo paneles
-  // vecinos; el resto del tablero conserva su distribución.
-  function packRunWithSizes(run, sizeOverrides) {
-    const rows = [];
-    let current = [];
-    let remaining = MAX_SPAN;
-
-    function closeRow() {
-      if (!current.length) return;
-      rows.push(current);
-      current = [];
-      remaining = MAX_SPAN;
-    }
-
-    for (const id of run) {
-      const manualSize = sizeOverrides[id];
-      const manual = Number.isInteger(manualSize);
-      const span = manual ? manualSize : Math.min(remaining, 6);
-
-      if (span > remaining && current.length) {
-        closeRow();
-      }
-
-      const finalSpan = manual ? manualSize : Math.min(remaining, 6);
-      current.push({ id, span: finalSpan, manual });
-      remaining -= finalSpan;
-
-      if (remaining <= 0) closeRow();
-    }
-    closeRow();
-
-    const result = [];
-    for (const row of rows) {
-      for (const item of row) result.push(item.span);
-    }
-    return result;
+  function clampSpanForPanel(panelId, value) {
+    return Math.min(
+      MAX_SPAN,
+      Math.max(minimumSpanFor(panelId), Math.round(Number(value) || MAX_SPAN)),
+    );
   }
 
-  // Calcula el span de cada panel visible. Si ninguno tiene tamaño manual,
-  // usa packSpans (fiel al diseño original); si al menos uno lo tiene, usa
-  // packRunWithSizes para toda la lista visible.
+  // Cada panel conserva un ancho propio. El empaquetado de filas se resuelve
+  // después, por orden, de modo que cambiar un panel no recalcula de forma
+  // inesperada el ancho de todos los demás.
   function computeSpans(visibleIds, sizeOverrides) {
-    const hasManual = visibleIds.some((id) => Number.isInteger(sizeOverrides[id]));
-    if (!hasManual) {
-      const spans = packSpans(visibleIds.length);
-      const result = new Map();
-      visibleIds.forEach((id, k) => result.set(id, DEFAULT_SPANS[id] ?? spans[k]));
-      return result;
-    }
-    const spans = packRunWithSizes(visibleIds, sizeOverrides);
     const result = new Map();
-    visibleIds.forEach((id, k) => result.set(id, spans[k]));
+    visibleIds.forEach((id) => {
+      const requested = sizeOverrides[id] ?? DEFAULT_SPANS[id] ?? 6;
+      result.set(id, clampSpanForPanel(id, requested));
+    });
     return result;
   }
 
@@ -240,7 +194,7 @@
         const value = typeof raw === "string" ? legacyMap[raw] : raw;
         const num = Math.round(Number(value));
         if (Number.isInteger(num) && num >= MIN_SPAN && num <= MAX_SPAN) {
-          sizes[id] = num;
+          sizes[id] = clampSpanForPanel(id, num);
         }
       }
     }
@@ -315,14 +269,14 @@
         el.removeAttribute("aria-hidden");
         const span = spanById.get(id) ?? MAX_SPAN;
         el.style.setProperty("--panel-span", String(span));
-        if (id === "summary") {
-          el.classList.toggle("is-compact", span <= 4);
-        }
       }
     });
 
     applyWorldClockVisibility();
-    window.requestAnimationFrame(applyRowHeights);
+    window.requestAnimationFrame(() => {
+      updateResponsivePanelClasses();
+      applyRowHeights();
+    });
     scheduleSplitterRefresh();
     renderPresetControls();
     renderList();
@@ -354,20 +308,44 @@
       );
   }
 
+  function isStackedLayout() {
+    return window.matchMedia(RESPONSIVE_STACK_QUERY).matches;
+  }
+
   function applyRowHeights() {
     const rows = getRows();
 
     for (const panel of panels.values()) {
       panel.style.removeProperty("--custom-row-height");
+      panel.classList.remove("has-custom-row-height");
     }
 
+    // En móvil y pantallas angostas la altura vuelve a ser automática: el
+    // contenido manda y nunca queda recortado por una medida de escritorio.
+    if (isStackedLayout()) return;
+
     rows.forEach((row) => {
-      const height = state.rowHeights[rowSignatureFromDom(row)];
-      if (!height) return;
+      const savedHeight = state.rowHeights[rowSignatureFromDom(row)];
+      if (!savedHeight) return;
+      const height = Math.max(savedHeight, minimumHeightForRow(row));
       row.forEach(({ panel }) => {
         panel.style.setProperty("--custom-row-height", `${height}px`);
+        panel.classList.add("has-custom-row-height");
       });
     });
+  }
+
+  function updateResponsivePanelClasses() {
+    for (const panel of panels.values()) {
+      if (panel.classList.contains("is-hidden-panel")) continue;
+      const width = panel.getBoundingClientRect().width;
+      panel.classList.toggle("is-panel-narrow", width > 0 && width < 520);
+      panel.classList.toggle("is-panel-compact", width > 0 && width < 340);
+      panel.classList.toggle("is-panel-wide", width >= 760);
+      if (panel.dataset.panelId === "summary") {
+        panel.classList.toggle("is-compact", width > 0 && width < 690);
+      }
+    }
   }
 
   // Muestra u oculta tarjetas individuales dentro del panel "Horas
@@ -449,6 +427,24 @@
     state.rowHeights = next;
   }
 
+  function configuredSpanFor(panelId) {
+    return clampSpanForPanel(
+      panelId,
+      state.sizes[panelId] ?? DEFAULT_SPANS[panelId] ?? MAX_SPAN,
+    );
+  }
+
+  function setPanelSpan(panelId, span) {
+    if (!DEFAULT_ORDER.includes(panelId)) return;
+    state.sizes = {
+      ...state.sizes,
+      [panelId]: clampSpanForPanel(panelId, span),
+    };
+    pruneRowHeights();
+    saveState();
+    applyLayout();
+  }
+
   function expandPanelIntoFreeSpace(panelId) {
     const rows = rowModelFor(state.order, state.sizes, state.hidden);
     const row = rows.find((candidate) => candidate.items.at(-1)?.id === panelId);
@@ -459,7 +455,7 @@
 
     state.sizes = {
       ...state.sizes,
-      [panelId]: clampSpan(item.span + freeSpace),
+      [panelId]: clampSpanForPanel(panelId, item.span + freeSpace),
     };
     pruneRowHeights();
     saveState();
@@ -469,7 +465,7 @@
   function syncExpandButtons() {
     dashboard.querySelectorAll(".panel-expand-button").forEach((button) => button.remove());
     if (!dashboard.classList.contains("is-customizing")) return;
-    if (window.matchMedia("(max-width: 1080px)").matches) return;
+    if (isStackedLayout()) return;
 
     const rows = rowModelFor(state.order, state.sizes, state.hidden);
     for (const row of rows) {
@@ -537,22 +533,66 @@
     });
   }
 
+  function smartSizesForInsertion(draggedId, targetId, placement, nextOrder) {
+    const nextSizes = { ...state.sizes };
+    // En una sola columna el gesto solo reordena. No altera silenciosamente
+    // el ancho de escritorio mientras el usuario organiza la versión móvil.
+    if (isStackedLayout()) return { sizes: nextSizes, joined: false };
+
+    const orderWithoutDragged = nextOrder.filter((id) => id !== draggedId);
+    const rows = rowModelFor(orderWithoutDragged, nextSizes, state.hidden);
+    const targetRow = rows.find((row) => row.items.some((item) => item.id === targetId));
+    if (!targetRow) return { sizes: nextSizes, joined: false };
+
+    const targetIndex = targetRow.items.findIndex((item) => item.id === targetId);
+    const currentSpan = configuredSpanFor(draggedId);
+    const minimumSpan = minimumSpanFor(draggedId);
+    let available = 0;
+
+    if (placement === "after") {
+      const prefix = targetRow.items
+        .slice(0, targetIndex + 1)
+        .reduce((total, item) => total + item.span, 0);
+      available = MAX_SPAN - prefix;
+    } else {
+      const prefix = targetRow.items
+        .slice(0, targetIndex)
+        .reduce((total, item) => total + item.span, 0);
+      available = MAX_SPAN - prefix - targetRow.items[targetIndex].span;
+    }
+
+    if (available < minimumSpan) return { sizes: nextSizes, joined: false };
+
+    nextSizes[draggedId] = clampSpanForPanel(
+      draggedId,
+      Math.min(currentSpan, available),
+    );
+    return { sizes: nextSizes, joined: true };
+  }
+
   function renderDashboardDropPreview(draggedId, targetId, placement) {
     if (!targetId || draggedId === targetId) return;
     const nextOrder = orderWithInsertion(draggedId, targetId, placement);
-    const nextSizes = { ...state.sizes };
+    const smartInsertion = smartSizesForInsertion(
+      draggedId,
+      targetId,
+      placement,
+      nextOrder,
+    );
+    const nextSizes = smartInsertion.sizes;
     const hiddenSet = new Set(state.hidden);
     const visible = nextOrder.filter((id) => !hiddenSet.has(id));
     const spanById = computeSpans(visible, nextSizes);
     const previewOrder = visible.indexOf(draggedId);
     const previewSpan = spanById.get(draggedId) ?? DEFAULT_SPANS[draggedId] ?? MAX_SPAN;
-    const nextKey = `${draggedId}:${targetId}:${placement}:${previewSpan}`;
+    const nextKey = `${draggedId}:${targetId}:${placement}:${previewSpan}:${smartInsertion.joined}`;
 
     dashboardDropState = {
       order: nextOrder,
       sizes: nextSizes,
       targetId,
       placement,
+      joined: smartInsertion.joined,
     };
 
     if (nextKey === dashboardPreviewKey) return;
@@ -571,8 +611,10 @@
     dropPreview.style.setProperty("--panel-order", String(previewOrder));
     dropPreview.style.setProperty("--preview-span", String(previewSpan));
     dropPreview.classList.add("is-visible");
-    dropPreview.classList.remove("is-expanded");
-    dropPreview.textContent = `Colocar ${PANEL_META[draggedId]?.label || "panel"}`;
+    dropPreview.classList.toggle("is-expanded", smartInsertion.joined);
+    dropPreview.textContent = smartInsertion.joined
+      ? `Unir ${PANEL_META[draggedId]?.label || "panel"} · ${previewSpan}/${MAX_SPAN}`
+      : `Colocar ${PANEL_META[draggedId]?.label || "panel"}`;
 
     animateLayoutFrom(previousRects);
   }
@@ -796,9 +838,38 @@
         : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.1 12S5.6 5 12 5s9.9 7 9.9 7-3.5 7-9.9 7-9.9-7-9.9-7Z"/><circle cx="12" cy="12" r="3"/></svg>';
       visBtn.addEventListener("click", () => toggleHidden(id));
 
+      const sizeWrap = document.createElement("span");
+      sizeWrap.className = "customize-size-control";
+      sizeWrap.setAttribute("aria-label", `Ancho de ${meta.label}`);
+
+      const sizeMinus = document.createElement("button");
+      sizeMinus.type = "button";
+      sizeMinus.className = "customize-icon-btn customize-size-btn";
+      sizeMinus.setAttribute("aria-label", `Reducir ancho de ${meta.label}`);
+      sizeMinus.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12h12"/></svg>';
+
+      const sizeValue = document.createElement("output");
+      sizeValue.className = "customize-size-value";
+      sizeValue.value = `${configuredSpanFor(id)}/${MAX_SPAN}`;
+      sizeValue.textContent = sizeValue.value;
+      sizeValue.title = "Columnas ocupadas en escritorio";
+
+      const sizePlus = document.createElement("button");
+      sizePlus.type = "button";
+      sizePlus.className = "customize-icon-btn customize-size-btn";
+      sizePlus.setAttribute("aria-label", `Aumentar ancho de ${meta.label}`);
+      sizePlus.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 6v12M6 12h12"/></svg>';
+
+      const currentSize = configuredSpanFor(id);
+      sizeMinus.disabled = isHidden || currentSize <= minimumSpanFor(id);
+      sizePlus.disabled = isHidden || currentSize >= MAX_SPAN;
+      sizeMinus.addEventListener("click", () => setPanelSpan(id, currentSize - 1));
+      sizePlus.addEventListener("click", () => setPanelSpan(id, currentSize + 1));
+      sizeWrap.append(sizeMinus, sizeValue, sizePlus);
+
       const controlsWrap = document.createElement("span");
       controlsWrap.className = "customize-row-controls";
-      controlsWrap.append(moveWrap, visBtn);
+      controlsWrap.append(sizeWrap, moveWrap, visBtn);
 
       li.append(handle, name, controlsWrap);
       list.appendChild(li);
@@ -1040,27 +1111,50 @@
     return Number.isInteger(fromStyle) ? fromStyle : 6;
   }
 
-  function clampSpan(value) {
-    return Math.min(MAX_SPAN, Math.max(MIN_SPAN, Math.round(value)));
-  }
-
   function commitPanelSpans(leftPanel, leftSpan, rightPanel, rightSpan) {
     const next = { ...state.sizes };
-    next[leftPanel.dataset.panelId] = clampSpan(leftSpan);
-    next[rightPanel.dataset.panelId] = clampSpan(rightSpan);
+    next[leftPanel.dataset.panelId] = clampSpanForPanel(
+      leftPanel.dataset.panelId,
+      leftSpan,
+    );
+    next[rightPanel.dataset.panelId] = clampSpanForPanel(
+      rightPanel.dataset.panelId,
+      rightSpan,
+    );
     state.sizes = next;
     pruneRowHeights();
     saveState();
     applyLayout();
   }
 
+  function measurePanelMinimumHeight(panel) {
+    const previousHeight = panel.style.getPropertyValue("--custom-row-height");
+    const hadCustomClass = panel.classList.contains("has-custom-row-height");
+    panel.style.removeProperty("--custom-row-height");
+    panel.classList.remove("has-custom-row-height");
+    panel.classList.add("is-measuring-height");
+
+    const measured = Math.ceil(panel.scrollHeight + 2);
+
+    panel.classList.remove("is-measuring-height");
+    if (previousHeight) panel.style.setProperty("--custom-row-height", previousHeight);
+    if (hadCustomClass) panel.classList.add("has-custom-row-height");
+    return Math.min(MAX_ROW_HEIGHT, Math.max(MIN_ROW_HEIGHT, measured));
+  }
+
+  function minimumHeightForRow(row) {
+    if (!row?.length) return MIN_ROW_HEIGHT;
+    return Math.max(...row.map(({ panel }) => measurePanelMinimumHeight(panel)));
+  }
+
   function setRowHeight(rowIndex, height) {
     const row = getRows()[rowIndex];
     if (!row) return;
     const next = { ...state.rowHeights };
+    const minimumHeight = minimumHeightForRow(row);
     next[rowSignatureFromDom(row)] = Math.min(
       MAX_ROW_HEIGHT,
-      Math.max(MIN_ROW_HEIGHT, Math.round(height)),
+      Math.max(minimumHeight, Math.round(height)),
     );
     state.rowHeights = next;
     saveState();
@@ -1104,19 +1198,20 @@
     splitterLayer.appendChild(splitter);
   }
 
-  function addHorizontalSplitter(rowIndex, upperRow, lowerRow) {
+  function addHorizontalSplitter(rowIndex, upperRow, lowerRow = null) {
     const splitter = document.createElement("button");
     splitter.type = "button";
     splitter.className = "layout-splitter layout-splitter-horizontal";
     splitter.dataset.rowIndex = String(rowIndex);
     splitter.setAttribute("aria-label", `Ajustar altura de fila ${rowIndex + 1}`);
-    splitter.title = "Arrastrá verticalmente. Paso: 12 px.";
-    splitter.dataset.tooltip = "Altura: paso 12 px";
+    splitter.title = "Arrastrá verticalmente. Doble clic para altura automática.";
+    splitter.dataset.tooltip = "Altura · doble clic: automático";
 
     const dashboardRect = dashboard.getBoundingClientRect();
     const upperBottom = Math.max(...upperRow.map(({ rect }) => rect.bottom));
-    const lowerTop = Math.min(...lowerRow.map(({ rect }) => rect.top));
-    const y = (upperBottom + lowerTop) / 2 - dashboardRect.top;
+    const y = lowerRow
+      ? (upperBottom + Math.min(...lowerRow.map(({ rect }) => rect.top))) / 2 - dashboardRect.top
+      : upperBottom - dashboardRect.top;
 
     splitter.style.left = "16px";
     splitter.style.right = "16px";
@@ -1129,16 +1224,14 @@
   function refreshSplitters() {
     splitterLayer.innerHTML = "";
     if (!dashboard.classList.contains("is-customizing")) return;
-    if (window.matchMedia("(max-width: 1080px)").matches) return;
+    if (isStackedLayout()) return;
 
     const rows = getRows();
     rows.forEach((row, rowIndex) => {
       for (let index = 0; index < row.length - 1; index += 1) {
         addVerticalSplitter(row[index], row[index + 1]);
       }
-      if (rowIndex < rows.length - 1) {
-        addHorizontalSplitter(rowIndex, row, rows[rowIndex + 1]);
-      }
+      addHorizontalSplitter(rowIndex, row, rows[rowIndex + 1] || null);
     });
   }
 
@@ -1160,8 +1253,8 @@
     function commitDelta(delta) {
       const leftStart = currentSpanOf(leftPanel);
       const rightStart = currentSpanOf(rightPanel);
-      const maxDelta = rightStart - MIN_SPAN;
-      const minDelta = MIN_SPAN - leftStart;
+      const maxDelta = rightStart - minimumSpanFor(rightPanel.dataset.panelId);
+      const minDelta = minimumSpanFor(leftPanel.dataset.panelId) - leftStart;
       const clampedDelta = Math.min(maxDelta, Math.max(minDelta, delta));
       if (!clampedDelta) return;
       commitPanelSpans(
@@ -1208,8 +1301,8 @@
       function onMove(moveEv) {
         if (moveEv.pointerId !== pointerId || finished) return;
         const rawDelta = step > 0 ? Math.round((moveEv.clientX - startX) / step) : 0;
-        const maxDelta = rightStart - MIN_SPAN;
-        const minDelta = MIN_SPAN - leftStart;
+        const maxDelta = rightStart - minimumSpanFor(rightPanel.dataset.panelId);
+        const minDelta = minimumSpanFor(leftPanel.dataset.panelId) - leftStart;
         const clampedDelta = Math.min(maxDelta, Math.max(minDelta, rawDelta));
         finalLeft = leftStart + clampedDelta;
         finalRight = rightStart - clampedDelta;
@@ -1264,8 +1357,19 @@
     function preview(height) {
       upperRow.forEach(({ panel }) => {
         panel.style.setProperty("--custom-row-height", `${height}px`);
+        panel.classList.add("has-custom-row-height");
       });
     }
+
+    splitter.addEventListener("dblclick", (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      const next = { ...state.rowHeights };
+      delete next[rowSignatureFromDom(upperRow)];
+      state.rowHeights = next;
+      saveState();
+      applyLayout();
+    });
 
     splitter.addEventListener("keydown", (ev) => {
       if (ev.key !== "ArrowUp" && ev.key !== "ArrowDown") return;
@@ -1282,6 +1386,7 @@
       const pointerId = ev.pointerId;
       const startY = ev.clientY;
       const startHeight = currentHeight();
+      const minimumHeight = minimumHeightForRow(upperRow);
       const splitterStartTop = parseFloat(splitter.style.top) || 0;
       const badge = makeSplitterBadge(`${Math.round(startHeight)}px`);
       splitter.appendChild(badge);
@@ -1303,12 +1408,14 @@
           Math.round((moveEv.clientY - startY) / ROW_HEIGHT_STEP) * ROW_HEIGHT_STEP;
         finalHeight = Math.min(
           MAX_ROW_HEIGHT,
-          Math.max(MIN_ROW_HEIGHT, Math.round(startHeight + steppedDelta)),
+          Math.max(minimumHeight, Math.round(startHeight + steppedDelta)),
         );
         preview(finalHeight);
         const appliedDelta = finalHeight - startHeight;
         splitter.style.top = `${splitterStartTop + appliedDelta}px`;
-        badge.textContent = `${finalHeight}px`;
+        badge.textContent = finalHeight <= minimumHeight
+          ? `${finalHeight}px · mínimo`
+          : `${finalHeight}px`;
       }
 
       function finish(commit) {
@@ -1375,6 +1482,37 @@
     });
   }
 
-  window.addEventListener("resize", scheduleSplitterRefresh);
+  const panelResizeObserver = typeof ResizeObserver === "function"
+    ? new ResizeObserver(() => {
+        updateResponsivePanelClasses();
+        scheduleSplitterRefresh();
+      })
+    : null;
+  panels.forEach((panel) => panelResizeObserver?.observe(panel));
+
+  // Vigila el tamaño del contenido interno, no sus cambios de texto. Así una
+  // lista que gana una fila vuelve a validar la altura guardada, sin medir el
+  // tablero cada segundo cuando solo cambia un reloj.
+  const contentResizeObserver = typeof ResizeObserver === "function"
+    ? new ResizeObserver(() => {
+        window.requestAnimationFrame(() => {
+          applyRowHeights();
+          scheduleSplitterRefresh();
+        });
+      })
+    : null;
+  document
+    .querySelectorAll(
+      ".local-content, .summary-card, .timeline-scroll, .market-map, " +
+        ".world-clock-grid, .holiday-list",
+    )
+    .forEach((element) => contentResizeObserver?.observe(element));
+
+  window.addEventListener("resize", () => {
+    updateResponsivePanelClasses();
+    applyRowHeights();
+    syncExpandButtons();
+    scheduleSplitterRefresh();
+  });
   applyLayout();
 })();

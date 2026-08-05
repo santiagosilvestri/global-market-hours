@@ -10,12 +10,12 @@
     <meta name="theme-color" content="#070b14" />
     <title>Global Market Hours</title>
     <link rel="icon" href="favicon.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="styles.css?v=10.1" />
+    <link rel="stylesheet" href="styles.css?v=6" />
     <script src="vendor/d3-array.min.js" defer></script>
     <script src="vendor/d3-geo.min.js" defer></script>
     <script src="vendor/topojson-client.min.js" defer></script>
-    <script src="app.js" defer></script>
-    <script src="layout.js?v=10.1" defer></script>
+    <script src="app.js?v=6" defer></script>
+    <script src="layout.js?v=6" defer></script>
   </head>
   <body>
     <header class="topbar">
@@ -57,10 +57,11 @@
           </button>
         </div>
         <p class="customize-hint">
-          Ordená y mostrás los paneles que necesitás. En escritorio, arrastrá
-          los divisores sobre la grilla para ajustar columnas o altura de fila
-          de a un paso. En mobile se mantiene una lectura compacta de una
-          columna sin controles de resize.
+          Ordená, agrupá y redimensioná los paneles. Podés ajustar el ancho
+          de cada módulo con −/+, arrastrarlo junto a otro para unirlos en una
+          fila y mover los divisores para afinar columnas o altura. La altura
+          mínima se limita al espacio que necesita el contenido; en pantallas
+          pequeñas los módulos se apilan automáticamente sin recortes.
         </p>
         <div class="customize-presets" aria-label="Plantillas de distribución">
           <span>Plantilla</span>

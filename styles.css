@@ -193,6 +193,7 @@ a {
 .panel {
   position: relative;
   min-width: 0;
+  container-type: inline-size;
   order: var(--panel-order, 0);
   grid-column: span var(--panel-span, 10);
   overflow: hidden;
@@ -208,6 +209,17 @@ a {
     opacity 160ms ease,
     outline-color 160ms ease,
     transform 160ms ease;
+}
+
+.panel.has-custom-row-height {
+  height: var(--custom-row-height);
+  min-height: var(--custom-row-height);
+}
+
+.panel.is-measuring-height {
+  align-self: start !important;
+  height: auto !important;
+  min-height: 0 !important;
 }
 
 .local-panel {
@@ -256,6 +268,152 @@ a {
   grid-column: span var(--panel-span, 10);
   min-height: var(--custom-row-height, 256px);
   padding: 24px 24px 20px;
+}
+
+/* Ajustes por ancho real del panel. Estas clases las mantiene
+   ResizeObserver, así el contenido responde al espacio asignado y no solo al
+   ancho total de la ventana. */
+.panel.is-panel-narrow .panel-heading {
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.local-panel.is-panel-narrow {
+  padding: 24px 22px;
+}
+
+.local-panel.is-panel-narrow .local-content {
+  width: 100%;
+}
+
+.local-panel.is-panel-narrow .globe-shape {
+  right: -18%;
+  width: 62%;
+  opacity: 0.42;
+}
+
+.local-panel.is-panel-narrow .location-name {
+  max-width: 92%;
+  white-space: normal;
+}
+
+.local-panel.is-panel-narrow .local-time {
+  font-size: clamp(2.45rem, 9cqw, 3.5rem);
+}
+
+.local-panel.is-panel-compact {
+  padding-inline: 18px;
+}
+
+.local-panel.is-panel-compact .globe-shape {
+  display: none;
+}
+
+.local-panel.is-panel-compact .eyebrow-row {
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.local-panel.is-panel-compact .location-name {
+  max-width: 100%;
+}
+
+.local-panel.is-panel-compact .local-time {
+  font-size: clamp(1.45rem, 14cqw, 2.45rem);
+  letter-spacing: -0.045em;
+}
+
+.timeline-panel.is-panel-narrow,
+.map-panel.is-panel-narrow,
+.worldclock-panel.is-panel-narrow,
+.calendar-panel.is-panel-narrow {
+  padding-inline: 18px;
+}
+
+.worldclock-panel.is-panel-narrow .world-clock-grid {
+  grid-template-columns: repeat(auto-fit, minmax(118px, 1fr));
+}
+
+.worldclock-panel.is-panel-compact .world-clock-grid {
+  grid-template-columns: 1fr;
+}
+
+.calendar-panel.is-panel-narrow .calendar-heading {
+  align-items: stretch;
+  flex-direction: column;
+}
+
+.calendar-panel.is-panel-narrow .calendar-filter {
+  justify-content: space-between;
+  width: 100%;
+}
+
+.calendar-panel.is-panel-narrow .calendar-filter select {
+  max-width: none;
+  flex: 1;
+}
+
+.calendar-panel.is-panel-narrow .holiday-list {
+  grid-template-columns: 1fr;
+}
+
+.summary-panel.is-compact {
+  align-content: stretch;
+}
+
+.summary-panel.is-panel-compact {
+  padding: 4px 12px;
+}
+
+.summary-panel.is-panel-compact .summary-card {
+  grid-template-columns: 34px minmax(0, 1fr);
+  gap: 8px;
+  padding: 14px 0;
+}
+
+.summary-panel.is-panel-compact .summary-icon {
+  width: 34px;
+  height: 34px;
+}
+
+.summary-panel.is-panel-compact .summary-icon svg {
+  width: 17px;
+}
+
+.summary-panel.is-panel-compact .summary-value {
+  font-size: 2rem;
+}
+
+.summary-panel.is-panel-compact .summary-market {
+  font-size: 1rem;
+}
+
+.summary-panel.is-panel-compact .countdown {
+  font-size: 0.95rem;
+  white-space: normal;
+}
+
+.calendar-panel.is-panel-compact {
+  padding-inline: 12px;
+}
+
+.calendar-panel.is-panel-compact .calendar-filter {
+  align-items: stretch;
+  flex-direction: column;
+}
+
+.calendar-panel.is-panel-compact .calendar-filter select {
+  width: 100%;
+}
+
+.calendar-panel.is-panel-compact .holiday-item {
+  grid-template-columns: 1fr;
+  align-items: start;
+  gap: 7px;
+}
+
+.calendar-panel.is-panel-compact .holiday-badge {
+  justify-self: start;
 }
 
 .panel-glow {
@@ -1835,6 +1993,31 @@ a {
   gap: 10px;
 }
 
+.customize-size-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px;
+  border: 1px solid rgba(113, 145, 203, 0.16);
+  border-radius: 10px;
+  background: rgba(5, 10, 19, 0.36);
+}
+
+.customize-size-value {
+  min-width: 38px;
+  color: #cdd7e8;
+  font-family: var(--font-display);
+  font-size: 0.68rem;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.customize-size-btn {
+  width: 24px;
+  height: 24px;
+  border-radius: 7px;
+}
+
 .customize-icon-btn {
   display: inline-flex;
   align-items: center;
@@ -2053,6 +2236,17 @@ a {
 
 @media (max-width: 1080px) {
   .dashboard {
+    gap: 12px;
+    padding: 12px;
+  }
+
+  .panel {
+    border-radius: 18px;
+  }
+}
+
+@media (max-width: 760px) {
+  .dashboard {
     grid-template-columns: 1fr;
   }
 
@@ -2065,26 +2259,27 @@ a {
   .timeline-panel,
   .map-panel,
   .worldclock-panel,
-  .calendar-panel {
-    grid-column: 1;
+  .calendar-panel,
+  .layout-drop-preview {
+    grid-column: 1 !important;
+  }
+
+  .panel.has-custom-row-height {
+    height: auto !important;
+    min-height: initial;
+  }
+
+  .local-panel {
+    min-height: 270px;
   }
 
   .summary-panel {
-    min-height: 224px;
+    min-height: auto;
   }
 
   .timeline-panel,
   .map-panel {
-    min-height: 440px;
-  }
-
-  .globe-shape {
-    right: 4%;
-    width: min(38%, 300px);
-  }
-
-  .local-content {
-    width: 68%;
+    min-height: 430px;
   }
 }
 
@@ -2099,7 +2294,11 @@ a {
 
   .customize-row-controls {
     flex: 1 1 100%;
-    justify-content: flex-end;
+    justify-content: space-between;
+  }
+
+  .customize-size-control {
+    order: -1;
   }
 
   .customize-presets {

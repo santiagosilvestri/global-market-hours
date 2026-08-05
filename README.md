@@ -92,38 +92,40 @@ solicitud a Google Fonts ni a otro servicio externo en tiempo de ejecución.
 
 El botón "Personalizar" de la topbar abre un panel para:
 
-- Reordenar los 6 bloques (Tu hora local, Resumen, Línea global de sesiones,
-  Mapa de mercados, Horas globales y Calendario bursátil) arrastrando el ícono de agarre — tanto en
-  la lista del panel como directamente sobre las tarjetas del dashboard — o
-  con las flechas subir/bajar.
-- Previsualizar el destino mientras se arrastra una tarjeta: el tablero hace
-  lugar antes de soltar, aparece una sombra de colocación y la lista indica si
-  el panel irá antes o después.
-- Expandir automáticamente una tarjeta movida cuando cae en una fila con
-  espacio sobrante, para que pueda ocupar el ancho disponible sin otro control.
-- Elegir una plantilla de distribución completa: Compacto, Balanceado o Amplio.
-  Son puntos de partida limpios para toda la grilla, no controles de tamaño por
-  tarjeta.
-- Ajustar el ancho sobre una grilla de 10 unidades arrastrando los divisores
-  verticales entre paneles vecinos. Cada movimiento cambia de a una columna:
-  un panel gana espacio y el panel de al lado lo cede. La barra activa acompaña
-  el movimiento mientras se arrastra.
-- Afinar la altura de una fila arrastrando los divisores horizontales entre
-  filas. La fila superior cambia de a pasos de 12 px y la siguiente conserva
-  su propia altura.
-- Mostrar u ocultar cualquiera de los 6 bloques (el ícono del ojo). Siempre
-  queda al menos uno visible. El Calendario bursátil se muestra por defecto.
-- Elegir qué bolsas mostrar dentro de "Horas globales" — el listado con las
-  10 bolsas aparece siempre debajo de esa fila, sin pasos adicionales.
-- El globo 3D del panel "Tu hora local" queda siempre activo.
-- "Restablecer diseño" vuelve todo al orden y tamaño original.
+- Reordenar los 6 módulos desde la lista o directamente sobre el dashboard.
+  El arrastre usa Pointer Events, por lo que funciona con mouse, trackpad y
+  pantalla táctil.
+- Unir varios módulos en una misma fila. Al soltar un panel junto a otro, la
+  previsualización verde indica que se incorporará a esa fila y, si hace falta,
+  reduce su ancho hasta el espacio disponible.
+- Ajustar de forma independiente el ancho de cada módulo con los controles
+  `− / +`. La grilla usa 10 unidades y admite configuraciones compactas de
+  varios módulos sin recalcular inesperadamente el resto del tablero.
+- Redistribuir el ancho entre vecinos arrastrando los divisores verticales. El
+  movimiento se realiza de a una columna y respeta el ancho mínimo legible de
+  cada tipo de contenido.
+- Afinar cualquier fila desde su divisor horizontal, incluida la última. La
+  altura cambia en pasos de 12 px y nunca baja del mínimo real requerido para
+  mostrar el contenido. Un doble clic devuelve esa fila a altura automática.
+- Ocupar el espacio libre de una fila con el botón de expansión que aparece en
+  el último módulo cuando corresponde.
+- Elegir las plantillas Compacto, Balanceado o Amplio como punto de partida.
+- Mostrar u ocultar módulos y seleccionar qué bolsas aparecen dentro de
+  "Horas globales". Siempre queda al menos un módulo visible.
+- Restablecer el orden, los anchos y las alturas originales.
+
+La respuesta del contenido se calcula por el ancho real de cada panel, no solo
+por el ancho de la ventana. Por eso el reloj local, el resumen, el calendario y
+las tarjetas de horarios cambian a variantes compactas cuando comparten poco
+espacio. A partir de 760 px o menos, la página se apila automáticamente en una
+sola columna, ignora las alturas fijas de escritorio y conserva únicamente el
+orden y la visibilidad. Así una personalización de escritorio no recorta el
+contenido en tablet angosta o teléfono.
 
 Todo se guarda en `localStorage` (clave `gmh:layout:v4`) en el propio
-navegador — no hay backend ni cuenta de usuario, así que la configuración es
-por dispositivo/navegador, no se sincroniza entre ellos. Tanto el arrastre
-para reordenar como el arrastre para cambiar ancho/alto usan Pointer Events
-(no el HTML5 Drag and Drop API). En pantallas chicas los divisores de resize se
-ocultan para conservar una experiencia de una columna más simple.
+navegador. La configuración persiste al recargar, pero es específica de cada
+dispositivo y navegador porque no existe una cuenta ni un backend que la
+sincronice.
 
 ## Horas globales
 

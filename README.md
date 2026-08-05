@@ -151,3 +151,17 @@ El panel "Calendario bursátil" queda activo por defecto y puede ocultarse desde
 mercados cargados, con filtro por bolsa, fecha, mercado, motivo y una etiqueta
 rápida ("Hoy", "Mañana", "Esta semana" o "Próximo"). Usa la misma lista de
 feriados 2026 que el estado de mercados y el timeline.
+
+
+## Plantillas v12
+
+La personalización incluye seis disposiciones predefinidas con nombres de una sola palabra:
+
+- Compacta: vista general con filas contenidas.
+- Intradía: prioriza mercados activos, sesiones y calendario.
+- Macro: amplía el calendario económico.
+- Global: enfatiza horarios y continuidad entre sesiones.
+- Focus: oculta el mapa y reduce distracciones.
+- Desk: aprovecha monitores anchos con una distribución tipo mesa de operaciones.
+
+Cada plantilla guarda orden, visibilidad, anchos y alturas. En móvil los paneles se apilan automáticamente.

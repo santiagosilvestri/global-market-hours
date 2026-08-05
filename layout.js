@@ -2,7 +2,7 @@
   "use strict";
 
   const STORAGE_KEY = "gmh:layout:v4";
-  const STATE_VERSION = 6;
+  const STATE_VERSION = 7;
   const DRAG_THRESHOLD = 7;
 
   const PANEL_META = {
@@ -26,22 +26,52 @@
   };
   const LAYOUT_PRESETS = {
     compact: {
-      label: "Compacto",
-      description: "Filas más bajas y pares equilibrados para pantallas chicas.",
+      label: "Compacta",
+      description: "Vista equilibrada y de baja altura para consultar todo rápidamente.",
+      order: ["local", "summary", "timeline", "map", "worldclock", "calendar"],
+      hidden: [],
       sizes: { local: 4, summary: 6, timeline: 5, map: 5, worldclock: 10, calendar: 10 },
-      rowHeights: [176, 312, 220, 220],
+      rowHeights: [184, 320, 236, 300],
     },
-    balanced: {
-      label: "Balanceado",
-      description: "Distribución base con foco parejo entre reloj, resumen, mapa y calendario.",
-      sizes: {},
-      rowHeights: [],
+    intraday: {
+      label: "Intradía",
+      description: "Prioriza mercados activos, sesiones y próximos eventos para operar durante el día.",
+      order: ["local", "worldclock", "summary", "timeline", "calendar", "map"],
+      hidden: [],
+      sizes: { local: 2, worldclock: 3, summary: 5, timeline: 10, calendar: 7, map: 3 },
+      rowHeights: [248, 332, 430],
     },
-    spacious: {
-      label: "Amplio",
-      description: "Más aire para timeline y lectura cómoda de paneles largos.",
-      sizes: { local: 5, summary: 5, timeline: 7, map: 3, worldclock: 10, calendar: 10 },
-      rowHeights: [280, 468, 300, 284],
+    macro: {
+      label: "Macro",
+      description: "Da máxima presencia al calendario y conecta los eventos con las sesiones globales.",
+      order: ["local", "worldclock", "summary", "calendar", "timeline", "map"],
+      hidden: [],
+      sizes: { local: 2, worldclock: 3, summary: 5, calendar: 10, timeline: 6, map: 4 },
+      rowHeights: [248, 470, 344],
+    },
+    global: {
+      label: "Global",
+      description: "Organiza la jornada por zonas horarias, mercados y continuidad entre sesiones.",
+      order: ["worldclock", "summary", "local", "timeline", "map", "calendar"],
+      hidden: [],
+      sizes: { worldclock: 4, summary: 3, local: 3, timeline: 10, map: 5, calendar: 5 },
+      rowHeights: [264, 332, 430],
+    },
+    focus: {
+      label: "Focus",
+      description: "Elimina distracciones y conserva únicamente los módulos críticos para una decisión rápida.",
+      order: ["summary", "local", "worldclock", "timeline", "calendar", "map"],
+      hidden: ["map"],
+      sizes: { summary: 5, local: 2, worldclock: 3, timeline: 10, calendar: 10, map: 4 },
+      rowHeights: [248, 326, 470],
+    },
+    desk: {
+      label: "Desk",
+      description: "Aprovecha monitores anchos con una cabecera operativa y una zona analítica amplia.",
+      order: ["local", "summary", "worldclock", "timeline", "map", "calendar"],
+      hidden: [],
+      sizes: { local: 2, summary: 3, worldclock: 5, timeline: 7, map: 3, calendar: 10 },
+      rowHeights: [264, 360, 470],
     },
   };
   const MIN_SPAN = 2;
@@ -141,9 +171,9 @@
   function presetRowHeights(preset) {
     return rowHeightMapFromArray(
       preset.rowHeights,
-      DEFAULT_ORDER,
-      preset.sizes,
-      DEFAULT_HIDDEN,
+      preset.order || DEFAULT_ORDER,
+      preset.sizes || {},
+      preset.hidden || DEFAULT_HIDDEN,
     );
   }
 
@@ -154,13 +184,28 @@
     return leftKeys.every((key) => left[key] === right[key]);
   }
 
+  function sameStringList(left, right) {
+    if (left.length !== right.length) return false;
+    return left.every((value, index) => value === right[index]);
+  }
+
+  function sameStringSet(left, right) {
+    if (left.length !== right.length) return false;
+    const rightSet = new Set(right);
+    return left.every((value) => rightSet.has(value));
+  }
+
   function currentPresetName() {
-    return Object.entries(LAYOUT_PRESETS).find(([, preset]) =>
-      sameNumberMap(state.sizes, preset.sizes) &&
-      sameNumberMap(state.rowHeights, presetRowHeights(preset)) &&
-      state.order.every((id, index) => id === DEFAULT_ORDER[index]) &&
-      state.hidden.length === DEFAULT_HIDDEN.length,
-    )?.[0] || null;
+    return Object.entries(LAYOUT_PRESETS).find(([, preset]) => {
+      const presetOrder = preset.order || DEFAULT_ORDER;
+      const presetHidden = preset.hidden || DEFAULT_HIDDEN;
+      return (
+        sameNumberMap(state.sizes, preset.sizes || {}) &&
+        sameNumberMap(state.rowHeights, presetRowHeights(preset)) &&
+        sameStringList(state.order, presetOrder) &&
+        sameStringSet(state.hidden, presetHidden)
+      );
+    })?.[0] || null;
   }
 
   function sanitizeState(parsed) {
@@ -726,9 +771,9 @@
     const preset = LAYOUT_PRESETS[presetName];
     if (!preset) return;
     state.version = STATE_VERSION;
-    state.order = DEFAULT_ORDER.slice();
-    state.hidden = DEFAULT_HIDDEN.slice();
-    state.sizes = cloneSizes(preset.sizes);
+    state.order = (preset.order || DEFAULT_ORDER).slice();
+    state.hidden = (preset.hidden || DEFAULT_HIDDEN).slice();
+    state.sizes = cloneSizes(preset.sizes || {});
     state.rowHeights = presetRowHeights(preset);
     saveState();
     applyLayout();

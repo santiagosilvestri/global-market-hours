@@ -2,7 +2,7 @@
   "use strict";
 
   const STORAGE_KEY = "gmh:layout:v4";
-  const STATE_VERSION = 8;
+  const STATE_VERSION = 9;
   const DRAG_THRESHOLD = 7;
 
   const PANEL_META = {
@@ -304,6 +304,7 @@
   }
 
   let state = loadState();
+  rebalanceState();
   saveState();
 
   function applyLayout() {
@@ -421,6 +422,7 @@
     const next = state.order.slice();
     [next[idx], next[newIdx]] = [next[newIdx], next[idx]];
     state.order = next;
+    rebalanceState();
     pruneRowHeights();
     saveState();
     applyLayout();
@@ -442,6 +444,7 @@
     if (normalized.length !== DEFAULT_ORDER.length) return;
     state.order = normalized;
     state.rowStarts = normalizeRowStarts(state.rowStarts, normalized);
+    rebalanceState();
     pruneRowHeights();
     saveState();
     applyLayout();
@@ -477,6 +480,91 @@
     closeRow();
 
     return rows;
+  }
+
+  function allocateBalancedSpans(items, total = MAX_SPAN, sizeOverrides = {}) {
+    if (!items.length) return new Map();
+
+    const entries = items.map((item, index) => {
+      const span = clampSpanForPanel(item.id, sizeOverrides[item.id] ?? item.span);
+      return {
+        id: item.id,
+        index,
+        span,
+        minimum: minimumSpanFor(item.id),
+        ideal: 0,
+        allocated: 0,
+      };
+    });
+
+    const minimumTotal = entries.reduce((sum, entry) => sum + entry.minimum, 0);
+    if (minimumTotal > total) {
+      return new Map(entries.map((entry) => [entry.id, entry.span]));
+    }
+
+    const weightTotal = entries.reduce((sum, entry) => sum + entry.span, 0) || entries.length;
+    entries.forEach((entry) => {
+      entry.ideal = (total * entry.span) / weightTotal;
+      entry.allocated = Math.max(entry.minimum, Math.floor(entry.ideal));
+    });
+
+    let allocatedTotal = entries.reduce((sum, entry) => sum + entry.allocated, 0);
+
+    while (allocatedTotal > total) {
+      const candidate = entries
+        .filter((entry) => entry.allocated > entry.minimum)
+        .sort((left, right) =>
+          (right.allocated - right.ideal) - (left.allocated - left.ideal) ||
+          right.allocated - left.allocated ||
+          right.index - left.index,
+        )[0];
+      if (!candidate) break;
+      candidate.allocated -= 1;
+      allocatedTotal -= 1;
+    }
+
+    while (allocatedTotal < total) {
+      const candidate = entries
+        .filter((entry) => entry.allocated < MAX_SPAN)
+        .sort((left, right) =>
+          (right.ideal - right.allocated) - (left.ideal - left.allocated) ||
+          left.allocated - right.allocated ||
+          left.index - right.index,
+        )[0];
+      if (!candidate) break;
+      candidate.allocated += 1;
+      allocatedTotal += 1;
+    }
+
+    return new Map(entries.map((entry) => [entry.id, entry.allocated]));
+  }
+
+  // Mantiene cada fila completa. Si se oculta o se mueve una tarjeta, el
+  // espacio sobrante se reparte proporcionalmente entre las tarjetas que
+  // permanecen en esa fila, conservando tanto como sea posible la relación
+  // de anchos elegida por el usuario.
+  function balanceSizesForLayout(order, sizes, hidden, rowStarts) {
+    const nextSizes = { ...sizes };
+    const rows = rowModelFor(order, nextSizes, hidden, rowStarts);
+
+    rows.forEach((row) => {
+      const balanced = allocateBalancedSpans(row.items, MAX_SPAN, nextSizes);
+      balanced.forEach((span, id) => {
+        nextSizes[id] = span;
+      });
+    });
+
+    return nextSizes;
+  }
+
+  function rebalanceState() {
+    state.rowStarts = normalizeRowStarts(state.rowStarts, state.order, state.hidden);
+    state.sizes = balanceSizesForLayout(
+      state.order,
+      state.sizes,
+      state.hidden,
+      state.rowStarts,
+    );
   }
 
   function visibleIdsFor(order = state.order, hidden = state.hidden) {
@@ -528,10 +616,33 @@
 
   function setPanelSpan(panelId, span) {
     if (!DEFAULT_ORDER.includes(panelId)) return;
-    state.sizes = {
-      ...state.sizes,
-      [panelId]: clampSpanForPanel(panelId, span),
-    };
+
+    const rows = rowModelFor(state.order, state.sizes, state.hidden, state.rowStarts);
+    const row = rows.find((candidate) => candidate.items.some((item) => item.id === panelId));
+    if (!row) return;
+
+    const otherItems = row.items.filter((item) => item.id !== panelId);
+    const minimumForOthers = otherItems.reduce(
+      (sum, item) => sum + minimumSpanFor(item.id),
+      0,
+    );
+    const requested = clampSpanForPanel(panelId, span);
+    const nextPanelSpan = Math.min(requested, MAX_SPAN - minimumForOthers);
+    const nextSizes = { ...state.sizes, [panelId]: nextPanelSpan };
+
+    if (otherItems.length) {
+      const balancedOthers = allocateBalancedSpans(
+        otherItems,
+        MAX_SPAN - nextPanelSpan,
+        nextSizes,
+      );
+      balancedOthers.forEach((value, id) => {
+        nextSizes[id] = value;
+      });
+    }
+
+    state.sizes = nextSizes;
+    rebalanceState();
     pruneRowHeights();
     saveState();
     applyLayout();
@@ -590,12 +701,7 @@
 
   function captureLayoutRects() {
     const rects = new Map();
-    const elements = [
-      ...visiblePanelElements().filter((panel) => !panel.classList.contains("is-dragging")),
-      dropPreview,
-    ];
-
-    elements.forEach((el) => {
+    visiblePanelElements().forEach((el) => {
       if (!el.isConnected) return;
       const rect = el.getBoundingClientRect();
       if (rect.width > 0 && rect.height > 0) rects.set(el, rect);
@@ -797,26 +903,26 @@
 
   function renderDashboardDropPreview(draggedId, targetId, placement, intent = "side") {
     if (!targetId || draggedId === targetId) return;
+
     const nextLayout = layoutForDashboardInsertion(
       draggedId,
       targetId,
       placement,
       intent,
     );
-    const nextOrder = nextLayout.order;
-    const nextSizes = nextLayout.sizes;
-    const nextRowStarts = nextLayout.rowStarts;
-    const hiddenSet = new Set(state.hidden);
-    const visible = nextOrder.filter((id) => !hiddenSet.has(id));
-    const spanById = computeSpans(visible, nextSizes);
-    const previewOrder = visible.indexOf(draggedId);
-    const previewSpan = spanById.get(draggedId) ?? DEFAULT_SPANS[draggedId] ?? MAX_SPAN;
-    const nextKey = `${draggedId}:${targetId}:${placement}:${intent}:${previewSpan}:${nextLayout.joined}:${nextRowStarts.join(",")}`;
+    const previewSizes = balanceSizesForLayout(
+      nextLayout.order,
+      nextLayout.sizes,
+      state.hidden,
+      nextLayout.rowStarts,
+    );
+    const previewSpan = previewSizes[draggedId] ?? configuredSpanFor(draggedId);
+    const nextKey = `${draggedId}:${targetId}:${placement}:${intent}:${previewSpan}:${nextLayout.rowStarts.join(",")}`;
 
     dashboardDropState = {
-      order: nextOrder,
-      sizes: nextSizes,
-      rowStarts: nextRowStarts,
+      order: nextLayout.order,
+      sizes: previewSizes,
+      rowStarts: nextLayout.rowStarts,
       targetId,
       placement,
       intent,
@@ -825,46 +931,52 @@
 
     if (nextKey === dashboardPreviewKey) return;
     dashboardPreviewKey = nextKey;
-    const previousRects = captureLayoutRects();
-    const rowStartSet = new Set(nextRowStarts);
 
-    visible.forEach((id, visibleIndex) => {
-      const el = panels.get(id);
-      if (!el) return;
-      el.style.setProperty("--panel-order", String(visibleIndex));
-      el.classList.toggle("is-row-start", rowStartSet.has(id));
-      if (id !== draggedId) {
-        el.style.setProperty("--panel-span", String(spanById.get(id) ?? MAX_SPAN));
-      }
-    });
+    const dashboardRect = dashboard.getBoundingClientRect();
+    const target = panels.get(targetId);
+    const targetRect = target?.getBoundingClientRect();
+    if (!targetRect) return;
 
-    dropPreview.style.setProperty("--panel-order", String(previewOrder));
-    dropPreview.style.setProperty("--preview-span", String(previewSpan));
     dropPreview.classList.add("is-visible");
-    dropPreview.classList.toggle("is-expanded", nextLayout.joined);
-    dropPreview.classList.toggle("is-row-insert", nextLayout.rowInsert);
-    dropPreview.classList.toggle("is-row-start", rowStartSet.has(draggedId));
-    dropPreview.textContent = nextLayout.rowInsert
-      ? `Nueva fila · ${PANEL_META[draggedId]?.label || "panel"}`
-      : `Misma fila · ${PANEL_META[draggedId]?.label || "panel"} · ${previewSpan}/${MAX_SPAN}`;
+    dropPreview.classList.toggle("is-expanded", intent === "side");
+    dropPreview.classList.toggle("is-row-insert", intent === "row");
+    dropPreview.classList.toggle("is-side-insert", intent !== "row");
 
-    animateLayoutFrom(previousRects);
+    if (intent === "row") {
+      const contentLeft = 16;
+      const contentWidth = Math.max(0, dashboardRect.width - 32);
+      const guideTop = targetRect.top - dashboardRect.top - 7;
+      dropPreview.style.left = `${contentLeft}px`;
+      dropPreview.style.top = `${guideTop}px`;
+      dropPreview.style.width = `${contentWidth}px`;
+      dropPreview.style.height = "42px";
+      dropPreview.textContent = `Nueva fila · ${PANEL_META[draggedId]?.label || "panel"}`;
+    } else {
+      const halfWidth = Math.max(96, targetRect.width / 2);
+      const left = placement === "before"
+        ? targetRect.left - dashboardRect.left
+        : targetRect.right - dashboardRect.left - halfWidth;
+      dropPreview.style.left = `${left}px`;
+      dropPreview.style.top = `${targetRect.top - dashboardRect.top}px`;
+      dropPreview.style.width = `${halfWidth}px`;
+      dropPreview.style.height = `${targetRect.height}px`;
+      dropPreview.textContent =
+        `Misma fila · ${PANEL_META[draggedId]?.label || "panel"} · ${previewSpan}/${MAX_SPAN}`;
+    }
   }
 
-  function clearDashboardDropPreview(options = {}) {
-    const { restoreLayout = false } = options;
-    const hadPreview = dashboardPreviewKey || dropPreview.classList.contains("is-visible");
-    const previousRects = restoreLayout && hadPreview ? captureLayoutRects() : null;
+  function clearDashboardDropPreview() {
     dashboardDropState = null;
     dashboardPreviewKey = "";
-    dropPreview.classList.remove("is-visible", "is-expanded", "is-row-insert", "is-row-start");
+    dropPreview.classList.remove(
+      "is-visible",
+      "is-expanded",
+      "is-row-insert",
+      "is-side-insert",
+      "is-row-start",
+    );
     dropPreview.textContent = "";
-    dropPreview.style.removeProperty("--panel-order");
-    dropPreview.style.removeProperty("--preview-span");
-    if (restoreLayout && hadPreview) {
-      applyLayout();
-      animateLayoutFrom(previousRects);
-    }
+    dropPreview.removeAttribute("style");
   }
 
   function placementForTarget(targetEl, x, y, mode) {
@@ -1003,14 +1115,24 @@
 
   function toggleHidden(id) {
     const hiddenSet = new Set(state.hidden);
+    const visibleBefore = visibleIdsFor();
+    const hiddenIndex = visibleBefore.indexOf(id);
+    const wasRowStart = state.rowStarts.includes(id);
+
     if (hiddenSet.has(id)) {
       hiddenSet.delete(id);
     } else {
       const visibleCount = state.order.length - hiddenSet.size;
       if (visibleCount <= 1) return; // siempre queda al menos 1 panel visible
       hiddenSet.add(id);
+      if (wasRowStart) {
+        const successor = visibleBefore[hiddenIndex + 1];
+        if (successor) state.rowStarts = [...state.rowStarts, successor];
+      }
     }
+
     state.hidden = Array.from(hiddenSet);
+    rebalanceState();
     pruneRowHeights();
     saveState();
     applyLayout();
@@ -1024,6 +1146,7 @@
     state.hidden = (preset.hidden || DEFAULT_HIDDEN).slice();
     state.sizes = cloneSizes(preset.sizes || {});
     state.rowStarts = (preset.rowStarts || DEFAULT_ROW_STARTS).slice();
+    rebalanceState();
     state.rowHeights = presetRowHeights(preset);
     saveState();
     applyLayout();
@@ -1247,8 +1370,19 @@
 
     handle.addEventListener("pointerdown", (ev) => {
       if (ev.button !== undefined && ev.button !== 0) return;
+      if (mode === "dashboard" && !dashboard.classList.contains("is-customizing")) return;
+
       const itemEl = handle.closest("[data-panel-id]");
       if (!itemEl) return;
+
+      if (mode === "dashboard") {
+        const explicitHandle = ev.target.closest("[data-drag-handle]");
+        const interactive = ev.target.closest(
+          "button, a, input, select, textarea, summary, [contenteditable='true'], " +
+            ".layout-splitter, .panel-expand-button",
+        );
+        if (interactive && !explicitHandle) return;
+      }
 
       const draggedId = itemEl.dataset.panelId;
       const label = PANEL_META[draggedId]?.label || draggedId;
@@ -1259,14 +1393,14 @@
       let ghost = null;
       let dragging = false;
       let finished = false;
+      let moveFrame = 0;
+      let pendingPoint = null;
 
       ev.preventDefault();
       try {
         handle.setPointerCapture(pointerId);
       } catch {
-        // Algunos navegadores no permiten capturar el puntero en elementos
-        // que cambian de visibilidad durante el gesto. Los listeners globales
-        // siguen cubriendo ese caso.
+        // Los listeners globales mantienen activo el gesto.
       }
 
       function beginDrag(x, y) {
@@ -1276,18 +1410,10 @@
         ghost = makeDragGhost(label, x, y);
       }
 
-      function onMove(moveEv) {
-        if (moveEv.pointerId !== pointerId || finished) return;
-        const x = moveEv.clientX;
-        const y = moveEv.clientY;
+      function processMove(x, y) {
+        moveFrame = 0;
+        if (finished) return;
 
-        if (!dragging) {
-          const distance = Math.hypot(x - startX, y - startY);
-          if (distance < DRAG_THRESHOLD) return;
-          beginDrag(x, y);
-        }
-
-        moveEv.preventDefault();
         moveDragGhost(ghost, x, y);
         const items = resolveItems();
         const nextTarget = findDropTarget(itemEl, items, x, y, mode);
@@ -1302,13 +1428,39 @@
             currentTarget.intent || "side",
           );
         } else if (mode === "dashboard") {
-          clearDashboardDropPreview({ restoreLayout: true });
+          clearDashboardDropPreview();
         }
+      }
+
+      function onMove(moveEv) {
+        if (moveEv.pointerId !== pointerId || finished) return;
+        const x = moveEv.clientX;
+        const y = moveEv.clientY;
+
+        if (!dragging) {
+          const distance = Math.hypot(x - startX, y - startY);
+          if (distance < DRAG_THRESHOLD) return;
+          beginDrag(x, y);
+        }
+
+        moveEv.preventDefault();
+        pendingPoint = { x, y };
+        if (moveFrame) return;
+        moveFrame = window.requestAnimationFrame(() => {
+          if (!pendingPoint) {
+            moveFrame = 0;
+            return;
+          }
+          const point = pendingPoint;
+          pendingPoint = null;
+          processMove(point.x, point.y);
+        });
       }
 
       function finish(cancelled = false) {
         if (finished) return;
         finished = true;
+        if (moveFrame) window.cancelAnimationFrame(moveFrame);
         document.removeEventListener("pointermove", onMove);
         document.removeEventListener("pointerup", onUp);
         document.removeEventListener("pointercancel", onCancel);
@@ -1328,19 +1480,22 @@
         clearDropTarget(currentTarget);
 
         if (cancelled) {
-          if (mode === "dashboard") clearDashboardDropPreview({ restoreLayout: true });
+          if (mode === "dashboard") clearDashboardDropPreview();
           return;
         }
 
         if (currentTarget) {
           if (mode === "dashboard" && dashboardDropState) {
+            const previousRects = captureLayoutRects();
             state.order = dashboardDropState.order;
             state.sizes = dashboardDropState.sizes;
             state.rowStarts = dashboardDropState.rowStarts;
             clearDashboardDropPreview();
+            rebalanceState();
             pruneRowHeights();
             saveState();
             applyLayout();
+            animateLayoutFrom(previousRects);
           } else {
             setPanelOrder(
               orderWithInsertion(
@@ -1351,12 +1506,16 @@
             );
           }
         } else if (mode === "dashboard") {
-          clearDashboardDropPreview({ restoreLayout: true });
+          clearDashboardDropPreview();
         }
       }
 
       function onUp(upEv) {
         if (upEv.pointerId !== pointerId) return;
+        if (pendingPoint && dragging) {
+          processMove(pendingPoint.x, pendingPoint.y);
+          pendingPoint = null;
+        }
         finish(false);
       }
 
@@ -1378,10 +1537,11 @@
     });
   }
 
-  // Handles de arrastre directamente sobre los paneles del dashboard.
-  dashboard.querySelectorAll("[data-drag-handle]").forEach((handle) => {
+  // En el tablero toda la superficie no interactiva de una tarjeta funciona
+  // como zona de agarre. Los botones, enlaces y campos conservan su acción.
+  panels.forEach((panel) => {
     setupDragging(
-      handle,
+      panel,
       () =>
         Array.from(dashboard.querySelectorAll(".panel[data-panel-id]")).filter(
           (el) => !el.classList.contains("is-hidden-panel"),
@@ -1419,6 +1579,7 @@
       rightSpan,
     );
     state.sizes = next;
+    rebalanceState();
     pruneRowHeights();
     saveState();
     applyLayout();
@@ -1775,6 +1936,7 @@
         rowStarts: DEFAULT_ROW_STARTS.slice(),
         rowHeights: {},
       };
+      rebalanceState();
       saveState();
       applyLayout();
     });

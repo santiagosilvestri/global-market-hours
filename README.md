@@ -18,6 +18,9 @@ regulares de diez bolsas importantes del mundo.
 - Incluye Bolsas y Mercados Argentinos (BYMA), Buenos Aires.
 - Adaptación completa para escritorio, tablet y teléfono.
 - Personalización con caída contextual: sobre el divisor crea una fila; al costado une tarjetas en la misma fila.
+- Arrastre desde cualquier zona no interactiva de la tarjeta, no solo desde el controlador de seis puntos.
+- Redistribución automática: todas las filas ocupan siempre las diez columnas disponibles.
+- Previsualización estable sin reordenar el tablero continuamente durante el arrastre.
 - Sin backend, claves privadas, compilación ni dependencias.
 
 ## Publicar en GitHub Pages
@@ -94,23 +97,27 @@ solicitud a Google Fonts ni a otro servicio externo en tiempo de ejecución.
 El botón "Personalizar" de la topbar abre un panel para:
 
 - Reordenar los 6 módulos desde la lista o directamente sobre el dashboard.
-  El arrastre usa Pointer Events, por lo que funciona con mouse, trackpad y
-  pantalla táctil.
+  En modo personalización se puede iniciar el arrastre desde cualquier zona no
+  interactiva de la tarjeta, incluido su centro. Los botones, enlaces y campos
+  conservan su comportamiento normal.
 - Unir varios módulos en una misma fila. Al soltar un panel junto a otro, la
   previsualización verde indica que se incorporará a esa fila y, si hace falta,
   reduce su ancho hasta el espacio disponible.
-- Ajustar de forma independiente el ancho de cada módulo con los controles
-  `− / +`. La grilla usa 10 unidades y admite configuraciones compactas de
-  varios módulos sin recalcular inesperadamente el resto del tablero.
+- Ajustar el ancho de cada módulo con los controles `− / +`. La grilla usa
+  10 unidades y redistribuye el espacio restante entre los módulos vecinos,
+  conservando sus proporciones siempre que sea posible. Nunca quedan huecos
+  laterales en una fila.
 - Redistribuir el ancho entre vecinos arrastrando los divisores verticales. El
   movimiento se realiza de a una columna y respeta el ancho mínimo legible de
   cada tipo de contenido.
 - Afinar cualquier fila desde su divisor horizontal, incluida la última. La
   altura cambia en pasos de 12 px y nunca baja del mínimo real requerido para
   mostrar el contenido. Un doble clic devuelve esa fila a altura automática.
-- Ocupar el espacio libre de una fila con el botón de expansión que aparece en
-  el último módulo cuando corresponde.
-- Elegir las plantillas Compacto, Balanceado o Amplio como punto de partida.
+- Mantener el tablero estable mientras se arrastra: la posición de las demás
+  tarjetas no cambia durante el gesto. El nuevo orden se aplica una sola vez al
+  soltar y utiliza una transición breve.
+- Elegir las plantillas Compacta, Intradía, Macro, Global, Focus o Desk como
+  punto de partida.
 - Mostrar u ocultar módulos y seleccionar qué bolsas aparecen dentro de
   "Horas globales". Siempre queda al menos un módulo visible.
 - Restablecer el orden, los anchos y las alturas originales.
@@ -154,7 +161,7 @@ rápida ("Hoy", "Mañana", "Esta semana" o "Próximo"). Usa la misma lista de
 feriados 2026 que el estado de mercados y el timeline.
 
 
-## Plantillas v12
+## Plantillas
 
 La personalización incluye seis disposiciones predefinidas con nombres de una sola palabra:
 
@@ -166,3 +173,16 @@ La personalización incluye seis disposiciones predefinidas con nombres de una s
 - Desk: aprovecha monitores anchos con una distribución tipo mesa de operaciones.
 
 Cada plantilla guarda orden, visibilidad, anchos y alturas. En móvil los paneles se apilan automáticamente.
+
+
+## Mejoras de interacción v14
+
+- Las filas se normalizan automáticamente a 10 columnas después de ocultar,
+  mover o redimensionar una tarjeta.
+- El arrastre puede comenzar desde el cuerpo de la tarjeta; las zonas
+  interactivas quedan excluidas para evitar acciones accidentales.
+- Durante el movimiento se muestra una guía superpuesta. Las demás tarjetas no
+  se reordenan hasta que se suelta el módulo.
+- El procesamiento del puntero se limita a un ciclo por frame para reducir
+  parpadeos y cambios de destino demasiado rápidos.
+- La distribución y los tamaños continúan guardándose en `localStorage`.

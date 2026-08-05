@@ -211,8 +211,7 @@ a {
     transform 160ms ease;
 }
 
-.panel.is-row-start,
-.layout-drop-preview.is-row-start {
+.panel.is-row-start {
   grid-column-start: 1;
 }
 
@@ -1478,6 +1477,16 @@ a {
   outline: 1.5px dashed rgba(123, 165, 255, 0.35);
   outline-offset: 3px;
   cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.dashboard.is-customizing .panel button,
+.dashboard.is-customizing .panel a,
+.dashboard.is-customizing .panel input,
+.dashboard.is-customizing .panel select,
+.dashboard.is-customizing .panel textarea {
+  cursor: auto;
 }
 
 .panel.is-hidden-panel {
@@ -1695,23 +1704,20 @@ a {
 }
 
 .layout-drop-preview {
-  position: relative;
-  z-index: 2;
+  position: absolute;
+  z-index: 12;
   display: none;
-  place-items: center;
-  min-height: min(180px, var(--custom-row-height, 180px));
-  grid-column: span var(--preview-span, 4);
-  order: var(--panel-order, 0);
+  align-items: center;
+  justify-content: center;
   overflow: hidden;
-  border: 1.5px dashed rgba(123, 165, 255, 0.74);
-  border-radius: 20px;
+  padding: 10px 14px;
+  border: 1.5px dashed rgba(123, 165, 255, 0.78);
+  border-radius: 16px;
   color: #dfe8ff;
-  background:
-    linear-gradient(145deg, rgba(53, 111, 231, 0.18), rgba(8, 13, 24, 0.78)),
-    rgba(12, 22, 39, 0.56);
+  background: rgba(18, 36, 68, 0.78);
   box-shadow:
     inset 0 0 0 1px rgba(123, 165, 255, 0.12),
-    0 18px 50px rgba(0, 0, 0, 0.18);
+    0 12px 34px rgba(0, 0, 0, 0.2);
   font-size: 0.72rem;
   font-weight: 680;
   letter-spacing: 0;
@@ -1720,24 +1726,31 @@ a {
 }
 
 .layout-drop-preview.is-visible {
-  display: grid;
-  animation: dropPreviewPulse 900ms ease-in-out infinite alternate;
+  display: flex;
+  animation: dropPreviewEnter 130ms ease-out both;
 }
 
-.layout-drop-preview.is-expanded {
-  border-color: rgba(101, 211, 146, 0.78);
+.layout-drop-preview.is-side-insert {
+  border-color: rgba(101, 211, 146, 0.82);
   color: #eafff2;
-  background:
-    linear-gradient(145deg, rgba(62, 168, 101, 0.2), rgba(8, 13, 24, 0.78)),
-    rgba(12, 22, 39, 0.56);
+  background: rgba(24, 83, 53, 0.72);
 }
 
 .layout-drop-preview.is-row-insert {
-  border-color: rgba(123, 165, 255, 0.92);
+  border-color: rgba(123, 165, 255, 0.94);
   color: #f2f6ff;
-  background:
-    linear-gradient(145deg, rgba(53, 111, 231, 0.26), rgba(8, 13, 24, 0.84)),
-    rgba(12, 22, 39, 0.62);
+  background: rgba(32, 69, 139, 0.86);
+}
+
+@keyframes dropPreviewEnter {
+  from {
+    opacity: 0;
+    transform: scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 .layout-drag-ghost {
@@ -1768,9 +1781,10 @@ a {
 }
 
 .dashboard.is-layout-dragging .panel.is-dragging {
-  display: none;
-  visibility: hidden;
-  opacity: 0;
+  visibility: visible;
+  opacity: 0.16;
+  filter: saturate(0.55);
+  pointer-events: none;
 }
 
 .panel.is-drop-target {
@@ -1813,18 +1827,7 @@ a {
   content: "";
 }
 
-@keyframes dropPreviewPulse {
-  from {
-    box-shadow:
-      inset 0 0 0 1px rgba(123, 165, 255, 0.12),
-      0 18px 50px rgba(0, 0, 0, 0.18);
-  }
-  to {
-    box-shadow:
-      inset 0 0 0 1px rgba(123, 165, 255, 0.25),
-      0 18px 54px rgba(53, 111, 231, 0.22);
-  }
-}
+
 
 .customize-drawer {
   overflow: hidden;
@@ -2285,8 +2288,7 @@ a {
   .timeline-panel,
   .map-panel,
   .worldclock-panel,
-  .calendar-panel,
-  .layout-drop-preview {
+  .calendar-panel {
     grid-column: 1 !important;
   }
 

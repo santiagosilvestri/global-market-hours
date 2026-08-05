@@ -1351,6 +1351,39 @@ a {
   stroke-linecap: round;
 }
 
+.panel-expand-button {
+  position: absolute;
+  top: 12px;
+  right: 50px;
+  z-index: 6;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid rgba(101, 211, 146, 0.42);
+  border-radius: 10px;
+  color: #dfffea;
+  background: rgba(20, 78, 48, 0.68);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.panel-expand-button:hover,
+.panel-expand-button:focus-visible {
+  border-color: rgba(101, 211, 146, 0.88);
+  background: rgba(31, 118, 72, 0.82);
+}
+
+.panel-expand-button svg {
+  width: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
 .panel.is-resizing,
 .panel.is-row-resizing {
   z-index: 8;
@@ -1619,7 +1652,7 @@ a {
 }
 
 .customize-drawer.is-open {
-  max-height: 560px;
+  max-height: 78vh;
 }
 
 .customize-drawer-inner {
@@ -1629,6 +1662,10 @@ a {
   background:
     linear-gradient(145deg, rgba(19, 27, 44, 0.72), rgba(8, 13, 24, 0.94)),
     var(--panel);
+  max-height: calc(78vh - 12px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
   box-shadow: var(--shadow);
 }
 
@@ -1930,7 +1967,11 @@ a {
   }
 
   .customize-drawer.is-open {
-    max-height: 900px;
+    max-height: 82vh;
+  }
+
+  .customize-drawer-inner {
+    max-height: calc(82vh - 10px);
   }
 }
 

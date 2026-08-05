@@ -2,6 +2,8 @@
   "use strict";
 
   const STORAGE_KEY = "gmh:layout:v4";
+  const STATE_VERSION = 5;
+  const DRAG_THRESHOLD = 7;
 
   const PANEL_META = {
     local: { label: "Tu hora local" },
@@ -157,8 +159,38 @@
     return { ...sizes };
   }
 
-  function cloneRowHeights(rowHeights) {
-    return rowHeights.slice();
+  function rowSignatureFromIds(ids) {
+    return ids.join("|");
+  }
+
+  function rowSignatureFromModel(row) {
+    return rowSignatureFromIds(row.items.map((item) => item.id));
+  }
+
+  function rowSignatureFromDom(row) {
+    return rowSignatureFromIds(row.map(({ panel }) => panel.dataset.panelId));
+  }
+
+  function rowHeightMapFromArray(values, order, sizes, hidden) {
+    const result = {};
+    if (!Array.isArray(values)) return result;
+    const rows = rowModelFor(order, sizes, hidden);
+    values.forEach((value, index) => {
+      const height = Math.round(Number(value));
+      const row = rows[index];
+      if (!row || height < MIN_ROW_HEIGHT || height > MAX_ROW_HEIGHT) return;
+      result[rowSignatureFromModel(row)] = height;
+    });
+    return result;
+  }
+
+  function presetRowHeights(preset) {
+    return rowHeightMapFromArray(
+      preset.rowHeights,
+      DEFAULT_ORDER,
+      preset.sizes,
+      DEFAULT_HIDDEN,
+    );
   }
 
   function sameNumberMap(left, right) {
@@ -168,14 +200,10 @@
     return leftKeys.every((key) => left[key] === right[key]);
   }
 
-  function sameArray(left, right) {
-    return left.length === right.length && left.every((value, index) => value === right[index]);
-  }
-
   function currentPresetName() {
     return Object.entries(LAYOUT_PRESETS).find(([, preset]) =>
       sameNumberMap(state.sizes, preset.sizes) &&
-      sameArray(state.rowHeights, preset.rowHeights) &&
+      sameNumberMap(state.rowHeights, presetRowHeights(preset)) &&
       state.order.every((id, index) => id === DEFAULT_ORDER[index]) &&
       state.hidden.length === DEFAULT_HIDDEN.length,
     )?.[0] || null;
@@ -183,7 +211,7 @@
 
   function sanitizeState(parsed) {
     let order = Array.isArray(parsed?.order)
-      ? parsed.order.filter((id) => DEFAULT_ORDER.includes(id))
+      ? [...new Set(parsed.order.filter((id) => DEFAULT_ORDER.includes(id)))]
       : [];
     // Si viene de una versión anterior con menos paneles (ej. sin
     // "worldclock"), lo agregamos al final en vez de descartar todo el
@@ -194,20 +222,23 @@
     if (order.length !== DEFAULT_ORDER.length) order = DEFAULT_ORDER.slice();
 
     const hidden = Array.isArray(parsed?.hidden)
-      ? parsed.hidden.filter((id) => DEFAULT_ORDER.includes(id))
+      ? [...new Set(parsed.hidden.filter((id) => DEFAULT_ORDER.includes(id)))]
       : DEFAULT_HIDDEN.slice();
     // nunca ocultar todos los paneles a la vez
     const safeHidden = hidden.length >= DEFAULT_ORDER.length ? [] : hidden;
 
     const sizes = {};
     if (parsed?.sizes && typeof parsed.sizes === "object") {
-      const legacyMap = { large: 5, full: 5, standard: 3, compact: 2 };
+      // Los estados actuales ya usan una grilla de 10 columnas. La versión
+      // anterior multiplicaba cualquier valor entre 2 y 5 al recargar, por
+      // lo que 4 terminaba convertido en 8 y 5 en 10. Solo migramos los
+      // nombres antiguos; los valores numéricos se conservan tal como fueron
+      // guardados.
+      const legacyMap = { large: 10, full: 10, standard: 6, compact: 4 };
       for (const id of DEFAULT_ORDER) {
         const raw = parsed.sizes[id];
-        const legacyNum = typeof raw === "string" ? legacyMap[raw] : raw;
-        const num = Number.isInteger(legacyNum) && legacyNum <= 5
-          ? legacyNum * 2
-          : legacyNum;
+        const value = typeof raw === "string" ? legacyMap[raw] : raw;
+        const num = Math.round(Number(value));
         if (Number.isInteger(num) && num >= MIN_SPAN && num <= MAX_SPAN) {
           sizes[id] = num;
         }
@@ -215,16 +246,28 @@
     }
 
     const worldClockHidden = Array.isArray(parsed?.worldClockHidden)
-      ? parsed.worldClockHidden.filter((id) => typeof id === "string")
+      ? [...new Set(parsed.worldClockHidden.filter((id) => typeof id === "string"))]
       : [];
 
-    const rowHeights = Array.isArray(parsed?.rowHeights)
-      ? parsed.rowHeights
-          .map((value) => Math.round(Number(value)))
-          .filter((value) => value >= MIN_ROW_HEIGHT && value <= MAX_ROW_HEIGHT)
-      : [];
+    let rowHeights = {};
+    if (Array.isArray(parsed?.rowHeights)) {
+      rowHeights = rowHeightMapFromArray(
+        parsed.rowHeights,
+        order,
+        sizes,
+        safeHidden,
+      );
+    } else if (parsed?.rowHeights && typeof parsed.rowHeights === "object") {
+      for (const [key, rawHeight] of Object.entries(parsed.rowHeights)) {
+        const height = Math.round(Number(rawHeight));
+        if (key && height >= MIN_ROW_HEIGHT && height <= MAX_ROW_HEIGHT) {
+          rowHeights[key] = height;
+        }
+      }
+    }
 
     return {
+      version: STATE_VERSION,
       order,
       hidden: safeHidden,
       sizes,
@@ -283,6 +326,7 @@
     scheduleSplitterRefresh();
     renderPresetControls();
     renderList();
+    syncExpandButtons();
   }
 
   function visiblePanelElements() {
@@ -317,8 +361,8 @@
       panel.style.removeProperty("--custom-row-height");
     }
 
-    rows.forEach((row, index) => {
-      const height = state.rowHeights[index];
+    rows.forEach((row) => {
+      const height = state.rowHeights[rowSignatureFromDom(row)];
       if (!height) return;
       row.forEach(({ panel }) => {
         panel.style.setProperty("--custom-row-height", `${height}px`);
@@ -344,6 +388,7 @@
     const next = state.order.slice();
     [next[idx], next[newIdx]] = [next[newIdx], next[idx]];
     state.order = next;
+    pruneRowHeights();
     saveState();
     applyLayout();
   }
@@ -359,8 +404,11 @@
   }
 
   function setPanelOrder(nextOrder) {
-    if (!Array.isArray(nextOrder) || nextOrder.length !== DEFAULT_ORDER.length) return;
-    state.order = nextOrder.filter((id) => DEFAULT_ORDER.includes(id));
+    if (!Array.isArray(nextOrder)) return;
+    const normalized = [...new Set(nextOrder.filter((id) => DEFAULT_ORDER.includes(id)))];
+    if (normalized.length !== DEFAULT_ORDER.length) return;
+    state.order = normalized;
+    pruneRowHeights();
     saveState();
     applyLayout();
   }
@@ -390,27 +438,66 @@
     return rows;
   }
 
-  function autoFillMovedPanel(order, sizes, movedId) {
-    const nextSizes = { ...sizes };
-    const rows = rowModelFor(order, nextSizes);
-    const targetRow = rows.find((row) => row.items.some((item) => item.id === movedId));
-    if (!targetRow) {
-      return {
-        sizes: nextSizes,
-        expanded: false,
-        span: nextSizes[movedId] ?? DEFAULT_SPANS[movedId] ?? MAX_SPAN,
-      };
+  function pruneRowHeights() {
+    const validKeys = new Set(
+      rowModelFor(state.order, state.sizes, state.hidden).map(rowSignatureFromModel),
+    );
+    const next = {};
+    for (const [key, height] of Object.entries(state.rowHeights)) {
+      if (validKeys.has(key)) next[key] = height;
     }
+    state.rowHeights = next;
+  }
 
-    const movedItem = targetRow.items.find((item) => item.id === movedId);
-    const freeSpace = MAX_SPAN - targetRow.total;
-    if (!movedItem || freeSpace <= 0) {
-      return { sizes: nextSizes, expanded: false, span: movedItem?.span ?? MAX_SPAN };
+  function expandPanelIntoFreeSpace(panelId) {
+    const rows = rowModelFor(state.order, state.sizes, state.hidden);
+    const row = rows.find((candidate) => candidate.items.at(-1)?.id === panelId);
+    if (!row) return;
+    const freeSpace = MAX_SPAN - row.total;
+    const item = row.items.at(-1);
+    if (!item || freeSpace <= 0) return;
+
+    state.sizes = {
+      ...state.sizes,
+      [panelId]: clampSpan(item.span + freeSpace),
+    };
+    pruneRowHeights();
+    saveState();
+    applyLayout();
+  }
+
+  function syncExpandButtons() {
+    dashboard.querySelectorAll(".panel-expand-button").forEach((button) => button.remove());
+    if (!dashboard.classList.contains("is-customizing")) return;
+    if (window.matchMedia("(max-width: 1080px)").matches) return;
+
+    const rows = rowModelFor(state.order, state.sizes, state.hidden);
+    for (const row of rows) {
+      const freeSpace = MAX_SPAN - row.total;
+      const item = row.items.at(-1);
+      if (!item || freeSpace <= 0 || item.span >= MAX_SPAN) continue;
+
+      const panel = panels.get(item.id);
+      if (!panel) continue;
+
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "panel-expand-button";
+      button.setAttribute(
+        "aria-label",
+        `Ampliar ${PANEL_META[item.id]?.label || "panel"} para ocupar el espacio libre`,
+      );
+      button.title = "Ocupar el ancho libre de esta fila";
+      button.innerHTML =
+        '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5H5v3M16 5h3v3M8 19H5v-3M16 19h3v-3"/><path d="M9 9 5 5M15 9l4-4M9 15l-4 4M15 15l4 4"/></svg>';
+      button.addEventListener("pointerdown", (event) => event.stopPropagation());
+      button.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        expandPanelIntoFreeSpace(item.id);
+      });
+      panel.appendChild(button);
     }
-
-    const nextSpan = clampSpan(movedItem.span + freeSpace);
-    nextSizes[movedId] = nextSpan;
-    return { sizes: nextSizes, expanded: true, span: nextSpan };
   }
 
   function captureLayoutRects() {
@@ -453,16 +540,17 @@
   function renderDashboardDropPreview(draggedId, targetId, placement) {
     if (!targetId || draggedId === targetId) return;
     const nextOrder = orderWithInsertion(draggedId, targetId, placement);
-    const fill = autoFillMovedPanel(nextOrder, state.sizes, draggedId);
+    const nextSizes = { ...state.sizes };
     const hiddenSet = new Set(state.hidden);
     const visible = nextOrder.filter((id) => !hiddenSet.has(id));
-    const spanById = computeSpans(visible, fill.sizes);
+    const spanById = computeSpans(visible, nextSizes);
     const previewOrder = visible.indexOf(draggedId);
-    const nextKey = `${draggedId}:${targetId}:${placement}:${fill.span}:${fill.expanded}`;
+    const previewSpan = spanById.get(draggedId) ?? DEFAULT_SPANS[draggedId] ?? MAX_SPAN;
+    const nextKey = `${draggedId}:${targetId}:${placement}:${previewSpan}`;
 
     dashboardDropState = {
       order: nextOrder,
-      sizes: fill.sizes,
+      sizes: nextSizes,
       targetId,
       placement,
     };
@@ -481,12 +569,10 @@
     });
 
     dropPreview.style.setProperty("--panel-order", String(previewOrder));
-    dropPreview.style.setProperty("--preview-span", String(spanById.get(draggedId) ?? fill.span));
+    dropPreview.style.setProperty("--preview-span", String(previewSpan));
     dropPreview.classList.add("is-visible");
-    dropPreview.classList.toggle("is-expanded", fill.expanded);
-    dropPreview.textContent = fill.expanded
-      ? "Ocupar espacio libre"
-      : `Colocar ${PANEL_META[draggedId]?.label || "panel"}`;
+    dropPreview.classList.remove("is-expanded");
+    dropPreview.textContent = `Colocar ${PANEL_META[draggedId]?.label || "panel"}`;
 
     animateLayoutFrom(previousRects);
   }
@@ -510,33 +596,45 @@
   function placementForTarget(targetEl, x, y, mode) {
     const rect = targetEl.getBoundingClientRect();
     if (mode === "list") return y < rect.top + rect.height / 2 ? "before" : "after";
+    if (y < rect.top) return "before";
+    if (y > rect.bottom) return "after";
     return x < rect.left + rect.width / 2 ? "before" : "after";
   }
 
-  function findDropTarget(itemEl, items, x, y, mode) {
-    let hit = null;
-    for (const el of items) {
-      if (el === itemEl) continue;
-      const rect = el.getBoundingClientRect();
-      if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {
-        hit = el;
-        break;
-      }
-    }
+  function distanceToRect(rect, x, y) {
+    const dx = Math.max(rect.left - x, 0, x - rect.right);
+    const dy = Math.max(rect.top - y, 0, y - rect.bottom);
+    return Math.hypot(dx, dy);
+  }
 
-    if (!hit && mode === "dashboard") {
+  function findDropTarget(itemEl, items, x, y, mode) {
+    const candidates = items
+      .filter((el) => el !== itemEl && !el.classList.contains("is-hidden-panel"))
+      .map((el) => ({ el, rect: el.getBoundingClientRect() }))
+      .filter(({ rect }) => rect.width > 0 && rect.height > 0);
+
+    if (!candidates.length) return null;
+
+    if (mode === "dashboard") {
       const boardRect = dashboard.getBoundingClientRect();
       const insideDashboard =
         x >= boardRect.left && x <= boardRect.right && y >= boardRect.top && y <= boardRect.bottom;
-      if (insideDashboard) {
-        hit = items.filter((el) => el !== itemEl).at(-1) || null;
+      if (!insideDashboard) return null;
+    }
+
+    let best = candidates[0];
+    let bestDistance = distanceToRect(best.rect, x, y);
+    for (const candidate of candidates.slice(1)) {
+      const distance = distanceToRect(candidate.rect, x, y);
+      if (distance < bestDistance) {
+        best = candidate;
+        bestDistance = distance;
       }
     }
 
-    if (!hit) return null;
     return {
-      el: hit,
-      placement: placementForTarget(hit, x, y, mode),
+      el: best.el,
+      placement: placementForTarget(best.el, x, y, mode),
     };
   }
 
@@ -577,6 +675,7 @@
       hiddenSet.add(id);
     }
     state.hidden = Array.from(hiddenSet);
+    pruneRowHeights();
     saveState();
     applyLayout();
   }
@@ -584,10 +683,11 @@
   function applyPreset(presetName) {
     const preset = LAYOUT_PRESETS[presetName];
     if (!preset) return;
+    state.version = STATE_VERSION;
     state.order = DEFAULT_ORDER.slice();
     state.hidden = DEFAULT_HIDDEN.slice();
     state.sizes = cloneSizes(preset.sizes);
-    state.rowHeights = cloneRowHeights(preset.rowHeights);
+    state.rowHeights = presetRowHeights(preset);
     saveState();
     applyLayout();
   }
@@ -783,18 +883,45 @@
       if (ev.button !== undefined && ev.button !== 0) return;
       const itemEl = handle.closest("[data-panel-id]");
       if (!itemEl) return;
-      ev.preventDefault();
 
       const draggedId = itemEl.dataset.panelId;
       const label = PANEL_META[draggedId]?.label || draggedId;
-      itemEl.classList.add("is-dragging");
-      if (mode === "dashboard") dashboard.classList.add("is-layout-dragging");
-      const ghost = makeDragGhost(label, ev.clientX, ev.clientY);
+      const pointerId = ev.pointerId;
+      const startX = ev.clientX;
+      const startY = ev.clientY;
       let currentTarget = null;
+      let ghost = null;
+      let dragging = false;
+      let finished = false;
+
+      ev.preventDefault();
+      try {
+        handle.setPointerCapture(pointerId);
+      } catch {
+        // Algunos navegadores no permiten capturar el puntero en elementos
+        // que cambian de visibilidad durante el gesto. Los listeners globales
+        // siguen cubriendo ese caso.
+      }
+
+      function beginDrag(x, y) {
+        dragging = true;
+        itemEl.classList.add("is-dragging");
+        if (mode === "dashboard") dashboard.classList.add("is-layout-dragging");
+        ghost = makeDragGhost(label, x, y);
+      }
 
       function onMove(moveEv) {
+        if (moveEv.pointerId !== pointerId || finished) return;
         const x = moveEv.clientX;
         const y = moveEv.clientY;
+
+        if (!dragging) {
+          const distance = Math.hypot(x - startX, y - startY);
+          if (distance < DRAG_THRESHOLD) return;
+          beginDrag(x, y);
+        }
+
+        moveEv.preventDefault();
         moveDragGhost(ghost, x, y);
         const items = resolveItems();
         const nextTarget = findDropTarget(itemEl, items, x, y, mode);
@@ -812,18 +939,38 @@
         }
       }
 
-      function onUp() {
+      function finish(cancelled = false) {
+        if (finished) return;
+        finished = true;
         document.removeEventListener("pointermove", onMove);
         document.removeEventListener("pointerup", onUp);
+        document.removeEventListener("pointercancel", onCancel);
+        document.removeEventListener("keydown", onKeyDown);
+
+        try {
+          if (handle.hasPointerCapture(pointerId)) handle.releasePointerCapture(pointerId);
+        } catch {
+          // No hay captura activa.
+        }
+
+        if (!dragging) return;
+
         itemEl.classList.remove("is-dragging");
         dashboard.classList.remove("is-layout-dragging");
-        ghost.remove();
+        ghost?.remove();
+        clearDropTarget(currentTarget);
+
+        if (cancelled) {
+          if (mode === "dashboard") clearDashboardDropPreview({ restoreLayout: true });
+          return;
+        }
+
         if (currentTarget) {
-          clearDropTarget(currentTarget);
           if (mode === "dashboard" && dashboardDropState) {
             state.order = dashboardDropState.order;
             state.sizes = dashboardDropState.sizes;
             clearDashboardDropPreview();
+            pruneRowHeights();
             saveState();
             applyLayout();
           } else {
@@ -836,13 +983,30 @@
             );
           }
         } else if (mode === "dashboard") {
-          clearDashboardDropPreview();
-          applyLayout();
+          clearDashboardDropPreview({ restoreLayout: true });
         }
       }
 
-      document.addEventListener("pointermove", onMove);
-      document.addEventListener("pointerup", onUp, { once: true });
+      function onUp(upEv) {
+        if (upEv.pointerId !== pointerId) return;
+        finish(false);
+      }
+
+      function onCancel(cancelEv) {
+        if (cancelEv.pointerId !== pointerId) return;
+        finish(true);
+      }
+
+      function onKeyDown(keyEv) {
+        if (keyEv.key !== "Escape") return;
+        keyEv.preventDefault();
+        finish(true);
+      }
+
+      document.addEventListener("pointermove", onMove, { passive: false });
+      document.addEventListener("pointerup", onUp);
+      document.addEventListener("pointercancel", onCancel);
+      document.addEventListener("keydown", onKeyDown);
     });
   }
 
@@ -885,13 +1049,16 @@
     next[leftPanel.dataset.panelId] = clampSpan(leftSpan);
     next[rightPanel.dataset.panelId] = clampSpan(rightSpan);
     state.sizes = next;
+    pruneRowHeights();
     saveState();
     applyLayout();
   }
 
   function setRowHeight(rowIndex, height) {
-    const next = state.rowHeights.slice();
-    next[rowIndex] = Math.min(
+    const row = getRows()[rowIndex];
+    if (!row) return;
+    const next = { ...state.rowHeights };
+    next[rowSignatureFromDom(row)] = Math.min(
       MAX_ROW_HEIGHT,
       Math.max(MIN_ROW_HEIGHT, Math.round(height)),
     );
@@ -1016,6 +1183,7 @@
       ev.preventDefault();
       ev.stopPropagation();
 
+      const pointerId = ev.pointerId;
       const startX = ev.clientX;
       const leftStart = currentSpanOf(leftPanel);
       const rightStart = currentSpanOf(rightPanel);
@@ -1027,10 +1195,18 @@
       leftPanel.classList.add("is-resizing");
       rightPanel.classList.add("is-resizing-partner");
 
+      try {
+        splitter.setPointerCapture(pointerId);
+      } catch {
+        // Los listeners del documento mantienen el gesto activo.
+      }
+
       let finalLeft = leftStart;
       let finalRight = rightStart;
+      let finished = false;
 
       function onMove(moveEv) {
+        if (moveEv.pointerId !== pointerId || finished) return;
         const rawDelta = step > 0 ? Math.round((moveEv.clientX - startX) / step) : 0;
         const maxDelta = rightStart - MIN_SPAN;
         const minDelta = MIN_SPAN - leftStart;
@@ -1042,28 +1218,46 @@
         badge.textContent = `${finalLeft}/${MAX_SPAN}`;
       }
 
-      function onUp() {
+      function finish(commit) {
+        if (finished) return;
+        finished = true;
         document.removeEventListener("pointermove", onMove);
         document.removeEventListener("pointerup", onUp);
+        document.removeEventListener("pointercancel", onCancel);
         splitter.classList.remove("is-active");
         leftPanel.classList.remove("is-resizing");
         rightPanel.classList.remove("is-resizing-partner");
         badge.remove();
-        if (finalLeft !== leftStart || finalRight !== rightStart) {
+        try {
+          if (splitter.hasPointerCapture(pointerId)) splitter.releasePointerCapture(pointerId);
+        } catch {
+          // No hay captura activa.
+        }
+
+        if (commit && (finalLeft !== leftStart || finalRight !== rightStart)) {
           commitPanelSpans(leftPanel, finalLeft, rightPanel, finalRight);
         } else {
-          scheduleSplitterRefresh();
+          applyLayout();
         }
       }
 
+      function onUp(upEv) {
+        if (upEv.pointerId === pointerId) finish(true);
+      }
+
+      function onCancel(cancelEv) {
+        if (cancelEv.pointerId === pointerId) finish(false);
+      }
+
       document.addEventListener("pointermove", onMove);
-      document.addEventListener("pointerup", onUp, { once: true });
+      document.addEventListener("pointerup", onUp);
+      document.addEventListener("pointercancel", onCancel);
     });
   }
 
   function setupHorizontalSplitter(splitter, rowIndex, upperRow) {
     function currentHeight() {
-      return state.rowHeights[rowIndex] ||
+      return state.rowHeights[rowSignatureFromDom(upperRow)] ||
         Math.max(...upperRow.map(({ rect }) => Math.round(rect.height)));
     }
 
@@ -1085,6 +1279,7 @@
       ev.preventDefault();
       ev.stopPropagation();
 
+      const pointerId = ev.pointerId;
       const startY = ev.clientY;
       const startHeight = currentHeight();
       const splitterStartTop = parseFloat(splitter.style.top) || 0;
@@ -1093,9 +1288,17 @@
       splitter.classList.add("is-active");
       upperRow.forEach(({ panel }) => panel.classList.add("is-row-resizing"));
 
+      try {
+        splitter.setPointerCapture(pointerId);
+      } catch {
+        // Los listeners del documento mantienen el gesto activo.
+      }
+
       let finalHeight = startHeight;
+      let finished = false;
 
       function onMove(moveEv) {
+        if (moveEv.pointerId !== pointerId || finished) return;
         const steppedDelta =
           Math.round((moveEv.clientY - startY) / ROW_HEIGHT_STEP) * ROW_HEIGHT_STEP;
         finalHeight = Math.min(
@@ -1103,25 +1306,44 @@
           Math.max(MIN_ROW_HEIGHT, Math.round(startHeight + steppedDelta)),
         );
         preview(finalHeight);
-        splitter.style.top = `${splitterStartTop + steppedDelta}px`;
+        const appliedDelta = finalHeight - startHeight;
+        splitter.style.top = `${splitterStartTop + appliedDelta}px`;
         badge.textContent = `${finalHeight}px`;
       }
 
-      function onUp() {
+      function finish(commit) {
+        if (finished) return;
+        finished = true;
         document.removeEventListener("pointermove", onMove);
         document.removeEventListener("pointerup", onUp);
+        document.removeEventListener("pointercancel", onCancel);
         splitter.classList.remove("is-active");
         upperRow.forEach(({ panel }) => panel.classList.remove("is-row-resizing"));
         badge.remove();
-        if (finalHeight !== startHeight) {
+        try {
+          if (splitter.hasPointerCapture(pointerId)) splitter.releasePointerCapture(pointerId);
+        } catch {
+          // No hay captura activa.
+        }
+
+        if (commit && finalHeight !== startHeight) {
           setRowHeight(rowIndex, finalHeight);
         } else {
-          scheduleSplitterRefresh();
+          applyLayout();
         }
       }
 
+      function onUp(upEv) {
+        if (upEv.pointerId === pointerId) finish(true);
+      }
+
+      function onCancel(cancelEv) {
+        if (cancelEv.pointerId === pointerId) finish(false);
+      }
+
       document.addEventListener("pointermove", onMove);
-      document.addEventListener("pointerup", onUp, { once: true });
+      document.addEventListener("pointerup", onUp);
+      document.addEventListener("pointercancel", onCancel);
     });
   }
 
@@ -1130,6 +1352,7 @@
     dashboard.classList.toggle("is-customizing", open);
     toggleBtn.classList.toggle("is-active", open);
     toggleBtn.setAttribute("aria-expanded", String(open));
+    syncExpandButtons();
     scheduleSplitterRefresh();
   }
 
@@ -1140,11 +1363,12 @@
   if (resetBtn) {
     resetBtn.addEventListener("click", () => {
       state = {
+        version: STATE_VERSION,
         order: DEFAULT_ORDER.slice(),
         hidden: DEFAULT_HIDDEN.slice(),
         sizes: {},
         worldClockHidden: [],
-        rowHeights: [],
+        rowHeights: {},
       };
       saveState();
       applyLayout();

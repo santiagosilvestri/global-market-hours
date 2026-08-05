@@ -15,6 +15,7 @@
     <script src="vendor/d3-geo.min.js" defer></script>
     <script src="vendor/topojson-client.min.js" defer></script>
     <script src="app.js" defer></script>
+    <script src="layout.js" defer></script>
   </head>
   <body>
     <header class="topbar">
@@ -28,29 +29,68 @@
         </span>
       </a>
 
-      <div class="topbar-status">
-        <span class="live-badge">
-          <span class="live-dot" aria-hidden="true"></span>
-          En vivo
-        </span>
-        <span id="topbar-local-time" class="topbar-local-time">--:--:--</span>
-        <span class="topbar-divider" aria-hidden="true"></span>
-        <label class="clock-picker" for="clock-zone-select">
-          <span class="clock-picker-label">Reloj</span>
-          <select
-            id="clock-zone-select"
-            class="clock-zone-select"
-            aria-label="Seleccionar reloj por bolsa"
-          >
-            <option value="new-york">Nueva York (NYSE)</option>
-          </select>
-        </label>
-        <span id="header-time" class="header-time">--:--:--</span>
+      <div class="topbar-actions">
+        <button
+          id="customize-toggle"
+          class="customize-toggle"
+          type="button"
+          aria-expanded="false"
+          aria-controls="customize-drawer"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M4 6h16M4 12h16M4 18h16" />
+            <circle cx="9" cy="6" r="1.6" fill="currentColor" stroke="none" />
+            <circle cx="16" cy="12" r="1.6" fill="currentColor" stroke="none" />
+            <circle cx="11" cy="18" r="1.6" fill="currentColor" stroke="none" />
+          </svg>
+          <span>Personalizar</span>
+        </button>
       </div>
     </header>
 
+    <div id="customize-drawer" class="customize-drawer">
+      <div class="customize-drawer-inner">
+        <div class="customize-drawer-heading">
+          <p class="eyebrow">Personalizar panel</p>
+          <button id="customize-reset" class="customize-reset" type="button">
+            Restablecer diseño
+          </button>
+        </div>
+        <p class="customize-hint">
+          Ordená y mostrás los paneles que necesitás. En escritorio, arrastrá
+          los divisores sobre la grilla para ajustar columnas o altura de fila
+          de a un paso. En mobile se mantiene una lectura compacta de una
+          columna sin controles de resize.
+        </p>
+        <div class="customize-presets" aria-label="Plantillas de distribución">
+          <span>Plantilla</span>
+          <div id="layout-presets" class="customize-preset-group"></div>
+        </div>
+        <ul id="customize-list" class="customize-list"></ul>
+      </div>
+    </div>
+
     <main id="main-content" class="dashboard">
-      <section class="panel local-panel" aria-labelledby="local-title">
+      <section
+        class="panel local-panel"
+        data-panel-id="local"
+        aria-labelledby="local-title"
+      >
+        <button
+          class="panel-drag-handle"
+          type="button"
+          aria-label="Mover panel Tu hora local"
+          data-drag-handle
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="9" cy="6" r="1.3" fill="currentColor" stroke="none" />
+            <circle cx="15" cy="6" r="1.3" fill="currentColor" stroke="none" />
+            <circle cx="9" cy="12" r="1.3" fill="currentColor" stroke="none" />
+            <circle cx="15" cy="12" r="1.3" fill="currentColor" stroke="none" />
+            <circle cx="9" cy="18" r="1.3" fill="currentColor" stroke="none" />
+            <circle cx="15" cy="18" r="1.3" fill="currentColor" stroke="none" />
+          </svg>
+        </button>
         <div class="panel-glow" aria-hidden="true"></div>
         <div class="globe-shape" aria-hidden="true">
           <svg id="local-globe" class="local-globe" viewBox="0 0 320 320">
@@ -124,9 +164,25 @@
 
       <section
         class="panel summary-panel"
+        data-panel-id="summary"
         aria-label="Resumen del estado de los mercados"
         aria-live="polite"
       >
+        <button
+          class="panel-drag-handle"
+          type="button"
+          aria-label="Mover panel Resumen"
+          data-drag-handle
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="9" cy="6" r="1.3" fill="currentColor" stroke="none" />
+            <circle cx="15" cy="6" r="1.3" fill="currentColor" stroke="none" />
+            <circle cx="9" cy="12" r="1.3" fill="currentColor" stroke="none" />
+            <circle cx="15" cy="12" r="1.3" fill="currentColor" stroke="none" />
+            <circle cx="9" cy="18" r="1.3" fill="currentColor" stroke="none" />
+            <circle cx="15" cy="18" r="1.3" fill="currentColor" stroke="none" />
+          </svg>
+        </button>
         <article class="summary-card summary-open">
           <span class="summary-icon" aria-hidden="true">
             <svg viewBox="0 0 24 24">
@@ -178,7 +234,26 @@
         </article>
       </section>
 
-      <section class="panel timeline-panel" aria-labelledby="timeline-title">
+      <section
+        class="panel timeline-panel"
+        data-panel-id="timeline"
+        aria-labelledby="timeline-title"
+      >
+        <button
+          class="panel-drag-handle"
+          type="button"
+          aria-label="Mover panel Línea global de sesiones"
+          data-drag-handle
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="9" cy="6" r="1.3" fill="currentColor" stroke="none" />
+            <circle cx="15" cy="6" r="1.3" fill="currentColor" stroke="none" />
+            <circle cx="9" cy="12" r="1.3" fill="currentColor" stroke="none" />
+            <circle cx="15" cy="12" r="1.3" fill="currentColor" stroke="none" />
+            <circle cx="9" cy="18" r="1.3" fill="currentColor" stroke="none" />
+            <circle cx="15" cy="18" r="1.3" fill="currentColor" stroke="none" />
+          </svg>
+        </button>
         <div class="panel-heading">
           <div>
             <p class="eyebrow" id="timeline-title">Línea global de sesiones</p>
@@ -221,7 +296,26 @@
         </div>
       </section>
 
-      <section class="panel map-panel" aria-labelledby="map-title">
+      <section
+        class="panel map-panel"
+        data-panel-id="map"
+        aria-labelledby="map-title"
+      >
+        <button
+          class="panel-drag-handle"
+          type="button"
+          aria-label="Mover panel Mapa de mercados"
+          data-drag-handle
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="9" cy="6" r="1.3" fill="currentColor" stroke="none" />
+            <circle cx="15" cy="6" r="1.3" fill="currentColor" stroke="none" />
+            <circle cx="9" cy="12" r="1.3" fill="currentColor" stroke="none" />
+            <circle cx="15" cy="12" r="1.3" fill="currentColor" stroke="none" />
+            <circle cx="9" cy="18" r="1.3" fill="currentColor" stroke="none" />
+            <circle cx="15" cy="18" r="1.3" fill="currentColor" stroke="none" />
+          </svg>
+        </button>
         <div class="panel-heading map-heading">
           <div>
             <p class="eyebrow" id="map-title">Mapa de mercados</p>
@@ -271,12 +365,78 @@
           </div>
         </div>
       </section>
+
+      <section
+        class="panel worldclock-panel"
+        data-panel-id="worldclock"
+        aria-labelledby="worldclock-title"
+      >
+        <button
+          class="panel-drag-handle"
+          type="button"
+          aria-label="Mover panel Horas globales"
+          data-drag-handle
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="9" cy="6" r="1.3" fill="currentColor" stroke="none" />
+            <circle cx="15" cy="6" r="1.3" fill="currentColor" stroke="none" />
+            <circle cx="9" cy="12" r="1.3" fill="currentColor" stroke="none" />
+            <circle cx="15" cy="12" r="1.3" fill="currentColor" stroke="none" />
+            <circle cx="9" cy="18" r="1.3" fill="currentColor" stroke="none" />
+            <circle cx="15" cy="18" r="1.3" fill="currentColor" stroke="none" />
+          </svg>
+        </button>
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow" id="worldclock-title">Horas globales</p>
+            <p class="panel-subtitle">Hora local de cada plaza, en vivo</p>
+          </div>
+        </div>
+        <div id="world-clock-grid" class="world-clock-grid"></div>
+      </section>
+
+      <section
+        class="panel calendar-panel"
+        data-panel-id="calendar"
+        aria-labelledby="calendar-title"
+      >
+        <button
+          class="panel-drag-handle"
+          type="button"
+          aria-label="Mover panel Calendario bursátil"
+          data-drag-handle
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="9" cy="6" r="1.3" fill="currentColor" stroke="none" />
+            <circle cx="15" cy="6" r="1.3" fill="currentColor" stroke="none" />
+            <circle cx="9" cy="12" r="1.3" fill="currentColor" stroke="none" />
+            <circle cx="15" cy="12" r="1.3" fill="currentColor" stroke="none" />
+            <circle cx="9" cy="18" r="1.3" fill="currentColor" stroke="none" />
+            <circle cx="15" cy="18" r="1.3" fill="currentColor" stroke="none" />
+          </svg>
+        </button>
+        <div class="panel-heading calendar-heading">
+          <div>
+            <p class="eyebrow" id="calendar-title">Calendario bursátil</p>
+            <p class="panel-subtitle">Próximos cierres completos por feriado</p>
+          </div>
+          <label class="calendar-filter">
+            <span>Mercado</span>
+            <select id="holiday-market-filter" aria-label="Filtrar calendario por mercado">
+              <option value="all">Todos</option>
+            </select>
+          </label>
+        </div>
+        <ol id="holiday-list" class="holiday-list" aria-label="Próximos feriados bursátiles">
+          <li>Calculando feriados…</li>
+        </ol>
+      </section>
     </main>
 
     <footer class="site-footer">
       <p>
-        Sesiones bursátiles regulares de lunes a viernes. Los cierres festivos y
-        suspensiones extraordinarias no se calculan.
+        Sesiones bursátiles regulares de lunes a viernes. Los feriados 2026 de
+        cierre completo se integran en el estado, el calendario y el timeline.
       </p>
       <p>
         La ubicación no se almacena; el nombre de la ciudad se consulta mediante

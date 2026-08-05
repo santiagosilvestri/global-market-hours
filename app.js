@@ -6,6 +6,163 @@
   const WEEKDAYS = new Set([1, 2, 3, 4, 5]);
   const LOCALE = "es-ES";
 
+  // Feriados bursátiles 2026 (cierres de jornada completa) por mercado.
+  // Verificado contra los calendarios oficiales de cada bolsa/regulador en
+  // agosto de 2026 (ver README para las fuentes). No incluye medias
+  // jornadas ni feriados que ya caen en fin de semana. Este dato NO se
+  // actualiza solo: hay que revisarlo una vez por año.
+  const HOLIDAYS_2026 = {
+    sydney: [
+      ["2026-01-01", "Año Nuevo"],
+      ["2026-01-26", "Día de Australia"],
+      ["2026-04-03", "Viernes Santo"],
+      ["2026-04-06", "Lunes de Pascua"],
+      ["2026-06-08", "Cumpleaños del Rey"],
+      ["2026-10-05", "Día del Trabajo (NSW)"],
+      ["2026-12-25", "Navidad"],
+    ],
+    tokyo: [
+      ["2026-01-01", "Año Nuevo"],
+      ["2026-01-02", "Feriado de mercado"],
+      ["2026-01-12", "Día de la Mayoría de Edad"],
+      ["2026-02-11", "Día de la Fundación Nacional"],
+      ["2026-02-23", "Cumpleaños del Emperador"],
+      ["2026-03-20", "Equinoccio de primavera"],
+      ["2026-04-29", "Día de Showa"],
+      ["2026-05-04", "Día del Verdor"],
+      ["2026-05-05", "Día del Niño"],
+      ["2026-05-06", "Día de la Constitución (obs.)"],
+      ["2026-07-20", "Día del Mar"],
+      ["2026-08-11", "Día de la Montaña"],
+      ["2026-09-21", "Día del Respeto a los Ancianos"],
+      ["2026-09-22", "Feriado de mercado"],
+      ["2026-09-23", "Equinoccio de otoño"],
+      ["2026-10-12", "Día del Deporte"],
+      ["2026-11-03", "Día de la Cultura"],
+      ["2026-11-23", "Día de Agradecimiento al Trabajo"],
+      ["2026-12-31", "Feriado de mercado"],
+    ],
+    shanghai: [
+      ["2026-01-01", "Año Nuevo"],
+      ["2026-01-02", "Año Nuevo (feriado)"],
+      ["2026-02-16", "Festival de Primavera"],
+      ["2026-02-17", "Festival de Primavera"],
+      ["2026-02-18", "Festival de Primavera"],
+      ["2026-02-19", "Festival de Primavera"],
+      ["2026-02-20", "Festival de Primavera"],
+      ["2026-02-23", "Festival de Primavera"],
+      ["2026-04-06", "Día de Qingming"],
+      ["2026-05-01", "Día del Trabajo"],
+      ["2026-05-04", "Día del Trabajo (feriado)"],
+      ["2026-05-05", "Día del Trabajo (feriado)"],
+      ["2026-06-19", "Festival del Bote del Dragón"],
+      ["2026-09-25", "Festival del Medio Otoño"],
+      ["2026-10-01", "Día Nacional"],
+      ["2026-10-02", "Día Nacional"],
+      ["2026-10-05", "Día Nacional"],
+      ["2026-10-06", "Día Nacional"],
+      ["2026-10-07", "Día Nacional"],
+    ],
+    "hong-kong": [
+      ["2026-01-01", "Año Nuevo"],
+      ["2026-02-17", "Año Nuevo Lunar"],
+      ["2026-02-18", "Año Nuevo Lunar"],
+      ["2026-02-19", "Año Nuevo Lunar"],
+      ["2026-04-03", "Viernes Santo"],
+      ["2026-04-06", "Festival de Qingming (obs.)"],
+      ["2026-04-07", "Lunes de Pascua (obs.)"],
+      ["2026-05-01", "Día del Trabajo"],
+      ["2026-05-25", "Cumpleaños de Buda (obs.)"],
+      ["2026-06-19", "Festival Tuen Ng"],
+      ["2026-07-01", "Día de la RAE de Hong Kong"],
+      ["2026-10-01", "Día Nacional"],
+      ["2026-10-19", "Festival Chung Yeung (obs.)"],
+      ["2026-12-25", "Navidad"],
+    ],
+    mumbai: [
+      ["2026-01-15", "Elecciones municipales (Maharashtra)"],
+      ["2026-01-26", "Día de la República"],
+      ["2026-03-03", "Holi"],
+      ["2026-03-26", "Shri Ram Navami"],
+      ["2026-03-31", "Shri Mahavir Jayanti"],
+      ["2026-04-03", "Viernes Santo"],
+      ["2026-04-14", "Ambedkar Jayanti"],
+      ["2026-05-01", "Día de Maharashtra"],
+      ["2026-05-28", "Bakri Eid"],
+      ["2026-06-26", "Muharram"],
+      ["2026-09-14", "Ganesh Chaturthi"],
+      ["2026-10-02", "Gandhi Jayanti"],
+      ["2026-10-20", "Dussehra"],
+      ["2026-11-10", "Diwali (Balipratipada)"],
+      ["2026-11-24", "Guru Nanak Jayanti"],
+      ["2026-12-25", "Navidad"],
+    ],
+    london: [
+      ["2026-01-01", "Año Nuevo"],
+      ["2026-04-03", "Viernes Santo"],
+      ["2026-04-06", "Lunes de Pascua"],
+      ["2026-05-04", "Bank Holiday de primavera"],
+      ["2026-05-25", "Spring Bank Holiday"],
+      ["2026-08-31", "Summer Bank Holiday"],
+      ["2026-12-25", "Navidad"],
+      ["2026-12-28", "Boxing Day (obs.)"],
+    ],
+    frankfurt: [
+      ["2026-01-01", "Año Nuevo"],
+      ["2026-04-03", "Viernes Santo"],
+      ["2026-04-06", "Lunes de Pascua"],
+      ["2026-05-01", "Día del Trabajo"],
+      ["2026-12-24", "Nochebuena"],
+      ["2026-12-25", "Navidad"],
+      ["2026-12-31", "Fin de año"],
+    ],
+    "new-york": [
+      ["2026-01-01", "Año Nuevo"],
+      ["2026-01-19", "Martin Luther King Jr."],
+      ["2026-02-16", "Cumpleaños de Washington"],
+      ["2026-04-03", "Viernes Santo"],
+      ["2026-05-25", "Memorial Day"],
+      ["2026-06-19", "Juneteenth"],
+      ["2026-07-03", "Día de la Independencia (obs.)"],
+      ["2026-09-07", "Día del Trabajo"],
+      ["2026-11-26", "Acción de Gracias"],
+      ["2026-12-25", "Navidad"],
+    ],
+    "sao-paulo": [
+      ["2026-01-01", "Año Nuevo"],
+      ["2026-02-16", "Carnaval"],
+      ["2026-02-17", "Carnaval"],
+      ["2026-04-03", "Viernes Santo"],
+      ["2026-04-21", "Tiradentes"],
+      ["2026-05-01", "Día del Trabajo"],
+      ["2026-06-04", "Corpus Christi"],
+      ["2026-09-07", "Independencia de Brasil"],
+      ["2026-10-12", "Nuestra Señora Aparecida"],
+      ["2026-11-02", "Día de los Difuntos"],
+      ["2026-11-20", "Consciência Negra"],
+      ["2026-12-24", "Nochebuena"],
+      ["2026-12-25", "Navidad"],
+      ["2026-12-31", "Fin de año"],
+    ],
+    "buenos-aires": [
+      ["2026-01-01", "Año Nuevo"],
+      ["2026-02-16", "Carnaval"],
+      ["2026-02-17", "Carnaval"],
+      ["2026-03-24", "Día de la Memoria"],
+      ["2026-04-02", "Día del Veterano (Malvinas)"],
+      ["2026-04-03", "Viernes Santo"],
+      ["2026-05-01", "Día del Trabajador"],
+      ["2026-05-25", "Revolución de Mayo"],
+      ["2026-06-15", "Paso a la Inmortalidad de Güemes"],
+      ["2026-07-09", "Día de la Independencia"],
+      ["2026-08-17", "Paso a la Inmortalidad de San Martín"],
+      ["2026-10-12", "Día del Respeto a la Diversidad Cultural"],
+      ["2026-11-23", "Día de la Soberanía Nacional"],
+      ["2026-12-08", "Inmaculada Concepción"],
+      ["2026-12-25", "Navidad"],
+    ],
+  };
+
   const MARKETS = [
     {
       id: "sydney",
@@ -128,10 +285,11 @@
     },
   ];
 
+  for (const market of MARKETS) {
+    market.holidays = new Map(HOLIDAYS_2026[market.id] || []);
+  }
+
   const elements = {
-    headerTime: document.querySelector("#header-time"),
-    topbarLocalTime: document.querySelector("#topbar-local-time"),
-    clockZoneSelect: document.querySelector("#clock-zone-select"),
     localTime: document.querySelector("#local-time"),
     localDate: document.querySelector("#local-date"),
     locationName: document.querySelector("#location-name"),
@@ -156,12 +314,15 @@
     timelineDate: document.querySelector("#timeline-date"),
     mapMarkers: document.querySelector("#map-markers"),
     marketDetail: document.querySelector("#market-detail"),
+    worldClockGrid: document.querySelector("#world-clock-grid"),
     worldLand: document.querySelector("#world-land"),
     worldBoundaries: document.querySelector("#world-boundaries"),
     worldGraticule: document.querySelector("#world-graticule"),
     globeLand: document.querySelector("#globe-land"),
     globeGraticule: document.querySelector("#globe-graticule"),
     globeLocationMarker: document.querySelector("#globe-location-marker"),
+    holidayMarketFilter: document.querySelector("#holiday-market-filter"),
+    holidayList: document.querySelector("#holiday-list"),
   };
 
   const state = {
@@ -174,7 +335,8 @@
     boundaries: null,
     mapProjection: null,
     userCoordinates: null,
-    selectedClockMarketId: "new-york",
+    holidayMarketFilter: "all",
+    worldClockCards: null,
   };
 
   const formatterCache = new Map();
@@ -269,10 +431,52 @@
     ).getUTCDay();
   }
 
+  const WEEKDAY_LABELS = [
+    "domingo",
+    "lunes",
+    "martes",
+    "miércoles",
+    "jueves",
+    "viernes",
+    "sábado",
+  ];
+
+  function dayOfWeekLabel(parts) {
+    return WEEKDAY_LABELS[dayOfWeek(parts)];
+  }
+
   function dateKey(parts) {
     return `${parts.year}-${String(parts.month).padStart(2, "0")}-${String(
       parts.day,
     ).padStart(2, "0")}`;
+  }
+
+  function dayNumber(parts) {
+    return Math.floor(Date.UTC(parts.year, parts.month - 1, parts.day) / DAY);
+  }
+
+  function isHoliday(market, parts) {
+    return market.holidays.has(dateKey(parts));
+  }
+
+  const nextHolidayCache = new Map();
+
+  function getNextHoliday(market, now = new Date(), parts = zonedParts(now, market.timeZone)) {
+    const cacheKey = dateKey(parts);
+    const cached = nextHolidayCache.get(market.id);
+    if (cached && cached.computedFor === cacheKey) return cached.value;
+
+    let value = null;
+    for (let offset = 0; offset <= 120; offset += 1) {
+      const candidateDate = addCalendarDays(parts, offset);
+      const key = dateKey(candidateDate);
+      if (market.holidays.has(key)) {
+        value = { dateKey: key, name: market.holidays.get(key), parts: candidateDate };
+        break;
+      }
+    }
+    nextHolidayCache.set(market.id, { computedFor: cacheKey, value });
+    return value;
   }
 
   function sessionEpoch(dateParts, minutes, timeZone) {
@@ -287,13 +491,16 @@
     );
   }
 
-  function getMarketStatus(market, now = new Date()) {
-    const parts = zonedParts(now, market.timeZone);
+  function getMarketStatus(market, now = new Date(), parts = zonedParts(now, market.timeZone)) {
     const minuteOfDay =
       parts.hour * 60 + parts.minute + parts.second / 60;
 
     if (!WEEKDAYS.has(dayOfWeek(parts))) {
-      return { open: false, closeAt: null };
+      return { open: false, closeAt: null, isHoliday: false };
+    }
+
+    if (isHoliday(market, parts)) {
+      return { open: false, closeAt: null, isHoliday: true };
     }
 
     for (const [start, end] of market.sessions) {
@@ -301,11 +508,12 @@
         return {
           open: true,
           closeAt: sessionEpoch(parts, end, market.timeZone),
+          isHoliday: false,
         };
       }
     }
 
-    return { open: false, closeAt: null };
+    return { open: false, closeAt: null, isHoliday: false };
   }
 
   function getNextOpen(market, now = new Date()) {
@@ -314,6 +522,7 @@
     for (let offset = 0; offset < 15; offset += 1) {
       const candidateDate = addCalendarDays(current, offset);
       if (!WEEKDAYS.has(dayOfWeek(candidateDate))) continue;
+      if (isHoliday(market, candidateDate)) continue;
 
       for (const [start] of market.sessions) {
         const openAt = sessionEpoch(
@@ -356,6 +565,7 @@
     const segments = [];
     for (const marketDate of marketDates.values()) {
       if (!WEEKDAYS.has(dayOfWeek(marketDate))) continue;
+      if (isHoliday(market, marketDate)) continue;
 
       for (const [start, end] of market.sessions) {
         const startAt = sessionEpoch(
@@ -412,12 +622,7 @@
   }
 
   function renderClock(now) {
-    const selectedMarket = MARKETS.find(
-      (market) => market.id === state.selectedClockMarketId,
-    );
-    const headerTimeZone = selectedMarket?.timeZone || MARKETS[0].timeZone;
     const fullTime = formatTime(now, state.userTimeZone, true);
-    const headerTime = formatTime(now, headerTimeZone, true);
     const formattedDate = capitalize(
       getFormatter(`date-${state.userTimeZone}`, {
         timeZone: state.userTimeZone,
@@ -435,18 +640,6 @@
         .formatToParts(now)
         .find((part) => part.type === "timeZoneName")?.value || "UTC";
 
-    elements.headerTime.textContent = headerTime;
-    elements.headerTime.title = selectedMarket
-      ? `${selectedMarket.name} (${selectedMarket.code}) · ${selectedMarket.timeZone.replaceAll(
-          "_",
-          " ",
-        )}`
-      : "";
-    elements.topbarLocalTime.textContent = fullTime;
-    elements.topbarLocalTime.title = `Tu hora local · ${state.userTimeZone.replaceAll(
-      "_",
-      " ",
-    )}`;
     elements.localTime.textContent = fullTime;
     elements.localTime.dateTime = now.toISOString();
     elements.localDate.textContent = formattedDate;
@@ -563,17 +756,216 @@
     }
   }
 
-  function populateClockZoneSelect() {
-    if (!elements.clockZoneSelect) return;
+  const MONTH_ABBR = [
+    "ene",
+    "feb",
+    "mar",
+    "abr",
+    "may",
+    "jun",
+    "jul",
+    "ago",
+    "sep",
+    "oct",
+    "nov",
+    "dic",
+  ];
+
+  function formatShortDate(parts) {
+    return `${parts.day} ${MONTH_ABBR[parts.month - 1]}`;
+  }
+
+  function daysBetween(leftParts, rightParts) {
+    return dayNumber(leftParts) - dayNumber(rightParts);
+  }
+
+  function holidayBadge(daysAway) {
+    if (daysAway === 0) return "Hoy";
+    if (daysAway === 1) return "Mañana";
+    if (daysAway <= 7) return "Esta semana";
+    return "Próximo";
+  }
+
+  function getUpcomingHolidays(now, marketFilter = "all", limit = 8) {
+    const items = [];
+
+    for (const market of MARKETS) {
+      if (marketFilter !== "all" && market.id !== marketFilter) continue;
+      const marketToday = zonedParts(now, market.timeZone);
+
+      for (const [holidayDateKey, name] of market.holidays.entries()) {
+        const [year, month, day] = holidayDateKey.split("-").map(Number);
+        const holidayParts = { year, month, day };
+        const daysAway = daysBetween(holidayParts, marketToday);
+        if (daysAway < 0 || daysAway > 120) continue;
+
+        items.push({
+          at: sessionEpoch(holidayParts, 0, market.timeZone),
+          daysAway,
+          market,
+          name,
+          parts: holidayParts,
+        });
+      }
+    }
+
+    return items
+      .sort((first, second) => first.at - second.at || first.market.name.localeCompare(
+        second.market.name,
+        LOCALE,
+      ))
+      .slice(0, limit);
+  }
+
+  function renderHolidayCalendar(now) {
+    if (!elements.holidayList) return;
+
+    const upcoming = getUpcomingHolidays(now, state.holidayMarketFilter);
+    elements.holidayList.replaceChildren();
+
+    if (upcoming.length === 0) {
+      const item = document.createElement("li");
+      item.className = "holiday-empty";
+      item.textContent = "No hay feriados próximos para este filtro";
+      elements.holidayList.append(item);
+      return;
+    }
+
+    for (const holiday of upcoming) {
+      const item = document.createElement("li");
+      item.className = "holiday-item";
+      item.style.setProperty("--market-color", holiday.market.color);
+
+      const date = document.createElement("time");
+      date.className = "holiday-date";
+      date.dateTime = dateKey(holiday.parts);
+      date.textContent = formatShortDate(holiday.parts);
+
+      const copy = document.createElement("div");
+      copy.className = "holiday-copy";
+
+      const market = document.createElement("strong");
+      market.textContent = `${holiday.market.name} (${holiday.market.code})`;
+
+      const name = document.createElement("span");
+      name.textContent = holiday.name;
+
+      const badge = document.createElement("span");
+      badge.className = "holiday-badge";
+      badge.textContent = holidayBadge(holiday.daysAway);
+
+      copy.append(market, name);
+      item.append(date, copy, badge);
+      elements.holidayList.append(item);
+    }
+  }
+
+  function renderWorldClock(now) {
+    if (!elements.worldClockGrid) return;
+
+    const viewerDay = dayNumber(zonedParts(now, state.userTimeZone));
+
+    if (!state.worldClockCards) {
+      state.worldClockCards = new Map();
+      for (const market of MARKETS) {
+        const card = document.createElement("article");
+        card.className = "world-clock-card";
+        card.dataset.marketId = market.id;
+        card.style.setProperty("--market-color", market.color);
+
+        const name = document.createElement("p");
+        name.className = "wc-name";
+        name.textContent = `${market.name} (${market.code})`;
+
+        const time = document.createElement("p");
+        time.className = "wc-time";
+
+        const meta = document.createElement("p");
+        meta.className = "wc-meta";
+
+        const status = document.createElement("span");
+        status.className = "wc-status";
+
+        const weekday = document.createTextNode("");
+        const dayFlag = document.createElement("span");
+        dayFlag.className = "wc-dayflag";
+
+        meta.append(status, weekday, dayFlag);
+
+        const holidayNote = document.createElement("p");
+        holidayNote.className = "wc-holiday";
+
+        card.append(name, time, meta, holidayNote);
+        elements.worldClockGrid.append(card);
+        state.worldClockCards.set(market.id, {
+          card,
+          status,
+          time,
+          weekday,
+          dayFlag,
+          holidayNote,
+        });
+      }
+    }
+
+    for (const market of MARKETS) {
+      const refs = state.worldClockCards.get(market.id);
+      if (!refs) continue;
+
+      const parts = zonedParts(now, market.timeZone);
+      const dayOffset = dayNumber(parts) - viewerDay;
+      const marketStatus = getMarketStatus(market, now, parts);
+      const isNight = parts.hour < 6 || parts.hour >= 20;
+
+      refs.card.classList.toggle("is-open", marketStatus.open);
+      refs.card.classList.toggle("is-night", isNight);
+      refs.time.textContent = formatTime(now, market.timeZone, true);
+
+      refs.status.classList.toggle("is-open", marketStatus.open);
+      refs.status.textContent = marketStatus.isHoliday
+        ? "Feriado"
+        : marketStatus.open
+          ? "Abierto"
+          : "Cerrado";
+      refs.weekday.textContent = " · " + capitalize(dayOfWeekLabel(parts));
+
+      if (dayOffset !== 0) {
+        refs.dayFlag.textContent = dayOffset < 0 ? " · ayer" : " · mañana";
+        refs.dayFlag.hidden = false;
+      } else {
+        refs.dayFlag.hidden = true;
+        refs.dayFlag.textContent = "";
+      }
+
+      const nextHoliday = getNextHoliday(market, now, parts);
+      const daysAway = nextHoliday
+        ? dayNumber(nextHoliday.parts) - dayNumber(parts)
+        : null;
+      if (nextHoliday && daysAway !== null && daysAway <= 21) {
+        refs.holidayNote.hidden = false;
+        refs.holidayNote.textContent =
+          daysAway === 0
+            ? `Feriado hoy: ${nextHoliday.name}`
+            : `Próximo feriado: ${formatShortDate(nextHoliday.parts)} · ${nextHoliday.name}`;
+      } else {
+        refs.holidayNote.hidden = true;
+        refs.holidayNote.textContent = "";
+      }
+    }
+  }
+
+  function populateHolidayMarketFilter() {
+    if (!elements.holidayMarketFilter) return;
 
     const options = [
+      ["all", "Todos"],
       ...MARKETS.map((market) => [
         market.id,
         `${market.name} (${market.code})`,
       ]),
     ];
 
-    elements.clockZoneSelect.replaceChildren(
+    elements.holidayMarketFilter.replaceChildren(
       ...options.map(([value, label]) => {
         const option = document.createElement("option");
         option.value = value;
@@ -581,7 +973,7 @@
         return option;
       }),
     );
-    elements.clockZoneSelect.value = state.selectedClockMarketId;
+    elements.holidayMarketFilter.value = state.holidayMarketFilter;
   }
 
   function renderTimeline(now = new Date()) {
@@ -1000,6 +1392,8 @@
     const now = new Date();
     renderClock(now);
     renderSummary(now);
+    renderWorldClock(now);
+    renderHolidayCalendar(now);
 
     const localDate = zonedParts(now, state.userTimeZone);
     if (dateKey(localDate) !== state.timelineDateKey) {
@@ -1008,13 +1402,13 @@
   }
 
   function initialize() {
-    populateClockZoneSelect();
+    populateHolidayMarketFilter();
     renderMapMarkers();
     renderTimeline(new Date());
     loadGeography();
-    elements.clockZoneSelect?.addEventListener("change", (event) => {
-      state.selectedClockMarketId = event.target.value;
-      renderClock(new Date());
+    elements.holidayMarketFilter?.addEventListener("change", (event) => {
+      state.holidayMarketFilter = event.target.value;
+      renderHolidayCalendar(new Date());
     });
     elements.locationButton.addEventListener("click", detectLocation);
     detectLocation();

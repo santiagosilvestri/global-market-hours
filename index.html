@@ -10,12 +10,12 @@
     <meta name="theme-color" content="#070b14" />
     <title>Global Market Hours</title>
     <link rel="icon" href="favicon.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="styles.css?v=8" />
+    <link rel="stylesheet" href="styles.css?v=9" />
     <script src="vendor/d3-array.min.js" defer></script>
     <script src="vendor/d3-geo.min.js" defer></script>
     <script src="vendor/topojson-client.min.js" defer></script>
     <script src="app.js?v=6" defer></script>
-    <script src="layout.js?v=9" defer></script>
+    <script src="layout.js?v=10" defer></script>
   </head>
   <body>
     <header class="topbar">
@@ -59,8 +59,8 @@
         <p class="customize-hint">
           Arrastrá una tarjeta desde cualquier zona no interactiva, incluido
           su centro. Soltala sobre una línea horizontal para crear una fila o
-          al costado de otra para compartirla. Cada fila redistribuye el espacio
-          automáticamente para ocupar todo el ancho. Los divisores permiten
+          al costado de otra para compartirla. Toda fila nueva se expande de
+          inmediato y cualquier espacio libre se redistribuye automáticamente. Los divisores permiten
           afinar columnas y altura sin recortar el contenido.
         </p>
         <div class="customize-presets" aria-label="Plantillas de distribución">
@@ -77,21 +77,6 @@
         data-panel-id="local"
         aria-labelledby="local-title"
       >
-        <button
-          class="panel-drag-handle"
-          type="button"
-          aria-label="Mover panel Tu hora local"
-          data-drag-handle
-        >
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <circle cx="9" cy="6" r="1.3" fill="currentColor" stroke="none" />
-            <circle cx="15" cy="6" r="1.3" fill="currentColor" stroke="none" />
-            <circle cx="9" cy="12" r="1.3" fill="currentColor" stroke="none" />
-            <circle cx="15" cy="12" r="1.3" fill="currentColor" stroke="none" />
-            <circle cx="9" cy="18" r="1.3" fill="currentColor" stroke="none" />
-            <circle cx="15" cy="18" r="1.3" fill="currentColor" stroke="none" />
-          </svg>
-        </button>
         <div class="panel-glow" aria-hidden="true"></div>
         <div class="globe-shape" aria-hidden="true">
           <svg id="local-globe" class="local-globe" viewBox="0 0 320 320">
@@ -169,21 +154,6 @@
         aria-label="Resumen del estado de los mercados"
         aria-live="polite"
       >
-        <button
-          class="panel-drag-handle"
-          type="button"
-          aria-label="Mover panel Resumen"
-          data-drag-handle
-        >
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <circle cx="9" cy="6" r="1.3" fill="currentColor" stroke="none" />
-            <circle cx="15" cy="6" r="1.3" fill="currentColor" stroke="none" />
-            <circle cx="9" cy="12" r="1.3" fill="currentColor" stroke="none" />
-            <circle cx="15" cy="12" r="1.3" fill="currentColor" stroke="none" />
-            <circle cx="9" cy="18" r="1.3" fill="currentColor" stroke="none" />
-            <circle cx="15" cy="18" r="1.3" fill="currentColor" stroke="none" />
-          </svg>
-        </button>
         <article class="summary-card summary-open">
           <span class="summary-icon" aria-hidden="true">
             <svg viewBox="0 0 24 24">
@@ -240,21 +210,6 @@
         data-panel-id="timeline"
         aria-labelledby="timeline-title"
       >
-        <button
-          class="panel-drag-handle"
-          type="button"
-          aria-label="Mover panel Línea global de sesiones"
-          data-drag-handle
-        >
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <circle cx="9" cy="6" r="1.3" fill="currentColor" stroke="none" />
-            <circle cx="15" cy="6" r="1.3" fill="currentColor" stroke="none" />
-            <circle cx="9" cy="12" r="1.3" fill="currentColor" stroke="none" />
-            <circle cx="15" cy="12" r="1.3" fill="currentColor" stroke="none" />
-            <circle cx="9" cy="18" r="1.3" fill="currentColor" stroke="none" />
-            <circle cx="15" cy="18" r="1.3" fill="currentColor" stroke="none" />
-          </svg>
-        </button>
         <div class="panel-heading">
           <div>
             <p class="eyebrow" id="timeline-title">Línea global de sesiones</p>
@@ -302,21 +257,6 @@
         data-panel-id="map"
         aria-labelledby="map-title"
       >
-        <button
-          class="panel-drag-handle"
-          type="button"
-          aria-label="Mover panel Mapa de mercados"
-          data-drag-handle
-        >
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <circle cx="9" cy="6" r="1.3" fill="currentColor" stroke="none" />
-            <circle cx="15" cy="6" r="1.3" fill="currentColor" stroke="none" />
-            <circle cx="9" cy="12" r="1.3" fill="currentColor" stroke="none" />
-            <circle cx="15" cy="12" r="1.3" fill="currentColor" stroke="none" />
-            <circle cx="9" cy="18" r="1.3" fill="currentColor" stroke="none" />
-            <circle cx="15" cy="18" r="1.3" fill="currentColor" stroke="none" />
-          </svg>
-        </button>
         <div class="panel-heading map-heading">
           <div>
             <p class="eyebrow" id="map-title">Mapa de mercados</p>
@@ -372,21 +312,6 @@
         data-panel-id="worldclock"
         aria-labelledby="worldclock-title"
       >
-        <button
-          class="panel-drag-handle"
-          type="button"
-          aria-label="Mover panel Horas globales"
-          data-drag-handle
-        >
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <circle cx="9" cy="6" r="1.3" fill="currentColor" stroke="none" />
-            <circle cx="15" cy="6" r="1.3" fill="currentColor" stroke="none" />
-            <circle cx="9" cy="12" r="1.3" fill="currentColor" stroke="none" />
-            <circle cx="15" cy="12" r="1.3" fill="currentColor" stroke="none" />
-            <circle cx="9" cy="18" r="1.3" fill="currentColor" stroke="none" />
-            <circle cx="15" cy="18" r="1.3" fill="currentColor" stroke="none" />
-          </svg>
-        </button>
         <div class="panel-heading">
           <div>
             <p class="eyebrow" id="worldclock-title">Horas globales</p>
@@ -401,21 +326,6 @@
         data-panel-id="calendar"
         aria-labelledby="calendar-title"
       >
-        <button
-          class="panel-drag-handle"
-          type="button"
-          aria-label="Mover panel Calendario bursátil"
-          data-drag-handle
-        >
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <circle cx="9" cy="6" r="1.3" fill="currentColor" stroke="none" />
-            <circle cx="15" cy="6" r="1.3" fill="currentColor" stroke="none" />
-            <circle cx="9" cy="12" r="1.3" fill="currentColor" stroke="none" />
-            <circle cx="15" cy="12" r="1.3" fill="currentColor" stroke="none" />
-            <circle cx="9" cy="18" r="1.3" fill="currentColor" stroke="none" />
-            <circle cx="15" cy="18" r="1.3" fill="currentColor" stroke="none" />
-          </svg>
-        </button>
         <div class="panel-heading calendar-heading">
           <div>
             <p class="eyebrow" id="calendar-title">Calendario bursátil</p>

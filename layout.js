@@ -2,7 +2,7 @@
   "use strict";
 
   const STORAGE_KEY = "gmh:layout:v4";
-  const STATE_VERSION = 9;
+  const STATE_VERSION = 10;
   const DRAG_THRESHOLD = 7;
 
   const PANEL_META = {
@@ -336,7 +336,6 @@
     scheduleSplitterRefresh();
     renderPresetControls();
     renderList();
-    syncExpandButtons();
   }
 
   function visiblePanelElements() {
@@ -559,11 +558,29 @@
 
   function rebalanceState() {
     state.rowStarts = normalizeRowStarts(state.rowStarts, state.order, state.hidden);
-    state.sizes = balanceSizesForLayout(
+
+    // Primera pasada: calcula las filas actuales y distribuye el ancho libre.
+    // Segunda pasada: vuelve a comprobar el modelo ya balanceado. Esto evita
+    // que una combinación heredada, un panel recién mostrado o una fila nueva
+    // conserve un hueco por depender de tamaños anteriores.
+    let nextSizes = balanceSizesForLayout(
       state.order,
       state.sizes,
       state.hidden,
       state.rowStarts,
+    );
+    nextSizes = balanceSizesForLayout(
+      state.order,
+      nextSizes,
+      state.hidden,
+      state.rowStarts,
+    );
+    state.sizes = nextSizes;
+  }
+
+  function layoutRowsAreFull(order = state.order, sizes = state.sizes, hidden = state.hidden, rowStarts = state.rowStarts) {
+    return rowModelFor(order, sizes, hidden, rowStarts).every(
+      (row) => row.items.length > 0 && row.total === MAX_SPAN,
     );
   }
 
@@ -646,57 +663,6 @@
     pruneRowHeights();
     saveState();
     applyLayout();
-  }
-
-  function expandPanelIntoFreeSpace(panelId) {
-    const rows = rowModelFor(state.order, state.sizes, state.hidden, state.rowStarts);
-    const row = rows.find((candidate) => candidate.items.at(-1)?.id === panelId);
-    if (!row) return;
-    const freeSpace = MAX_SPAN - row.total;
-    const item = row.items.at(-1);
-    if (!item || freeSpace <= 0) return;
-
-    state.sizes = {
-      ...state.sizes,
-      [panelId]: clampSpanForPanel(panelId, item.span + freeSpace),
-    };
-    pruneRowHeights();
-    saveState();
-    applyLayout();
-  }
-
-  function syncExpandButtons() {
-    dashboard.querySelectorAll(".panel-expand-button").forEach((button) => button.remove());
-    if (!dashboard.classList.contains("is-customizing")) return;
-    if (isStackedLayout()) return;
-
-    const rows = rowModelFor(state.order, state.sizes, state.hidden, state.rowStarts);
-    for (const row of rows) {
-      const freeSpace = MAX_SPAN - row.total;
-      const item = row.items.at(-1);
-      if (!item || freeSpace <= 0 || item.span >= MAX_SPAN) continue;
-
-      const panel = panels.get(item.id);
-      if (!panel) continue;
-
-      const button = document.createElement("button");
-      button.type = "button";
-      button.className = "panel-expand-button";
-      button.setAttribute(
-        "aria-label",
-        `Ampliar ${PANEL_META[item.id]?.label || "panel"} para ocupar el espacio libre`,
-      );
-      button.title = "Ocupar el ancho libre de esta fila";
-      button.innerHTML =
-        '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5H5v3M16 5h3v3M8 19H5v-3M16 19h3v-3"/><path d="M9 9 5 5M15 9l4-4M9 15l-4 4M15 15l4 4"/></svg>';
-      button.addEventListener("pointerdown", (event) => event.stopPropagation());
-      button.addEventListener("click", (event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        expandPanelIntoFreeSpace(item.id);
-      });
-      panel.appendChild(button);
-    }
   }
 
   function captureLayoutRects() {
@@ -1376,12 +1342,10 @@
       if (!itemEl) return;
 
       if (mode === "dashboard") {
-        const explicitHandle = ev.target.closest("[data-drag-handle]");
         const interactive = ev.target.closest(
-          "button, a, input, select, textarea, summary, [contenteditable='true'], " +
-            ".layout-splitter, .panel-expand-button",
+          "button, a, input, select, textarea, summary, [contenteditable='true'], .layout-splitter",
         );
-        if (interactive && !explicitHandle) return;
+        if (interactive) return;
       }
 
       const draggedId = itemEl.dataset.panelId;
@@ -1492,6 +1456,9 @@
             state.rowStarts = dashboardDropState.rowStarts;
             clearDashboardDropPreview();
             rebalanceState();
+            // Una inserción entre filas debe generar una tarjeta de ancho total;
+            // una inserción lateral debe repartir las diez columnas sin huecos.
+            if (!layoutRowsAreFull()) rebalanceState();
             pruneRowHeights();
             saveState();
             applyLayout();
@@ -1917,7 +1884,6 @@
     dashboard.classList.toggle("is-customizing", open);
     toggleBtn.classList.toggle("is-active", open);
     toggleBtn.setAttribute("aria-expanded", String(open));
-    syncExpandButtons();
     scheduleSplitterRefresh();
   }
 
@@ -1971,7 +1937,6 @@
   window.addEventListener("resize", () => {
     updateResponsivePanelClasses();
     applyRowHeights();
-    syncExpandButtons();
     scheduleSplitterRefresh();
   });
   applyLayout();

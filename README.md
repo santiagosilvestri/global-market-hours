@@ -175,7 +175,7 @@ La personalización incluye seis disposiciones predefinidas con nombres de una s
 Cada plantilla guarda orden, visibilidad, anchos y alturas. En móvil los paneles se apilan automáticamente.
 
 
-## Mejoras de interacción v14
+## Mejoras de interacción v15
 
 - Las filas se normalizan automáticamente a 10 columnas después de ocultar,
   mover o redimensionar una tarjeta.
@@ -186,3 +186,12 @@ Cada plantilla guarda orden, visibilidad, anchos y alturas. En móvil los panele
 - El procesamiento del puntero se limita a un ciclo por frame para reducir
   parpadeos y cambios de destino demasiado rápidos.
 - La distribución y los tamaños continúan guardándose en `localStorage`.
+
+
+## Ajustes de personalización v15
+
+- Todas las filas visibles se recalculan para sumar siempre las 10 columnas.
+- Una tarjeta soltada entre filas crea una fila nueva y ocupa el ancho completo.
+- Si se mueve u oculta una tarjeta, las restantes se expanden proporcionalmente.
+- Se eliminaron los botones superpuestos de seis puntos y de expansión.
+- El arrastre del tablero se realiza desde cualquier zona no interactiva de la tarjeta.

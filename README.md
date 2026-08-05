@@ -17,6 +17,7 @@ regulares de diez bolsas importantes del mundo.
   ubicación autorizada del usuario.
 - Incluye Bolsas y Mercados Argentinos (BYMA), Buenos Aires.
 - Adaptación completa para escritorio, tablet y teléfono.
+- Personalización con caída contextual: sobre el divisor crea una fila; al costado une tarjetas en la misma fila.
 - Sin backend, claves privadas, compilación ni dependencias.
 
 ## Publicar en GitHub Pages

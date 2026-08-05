@@ -2,7 +2,7 @@
   "use strict";
 
   const STORAGE_KEY = "gmh:layout:v4";
-  const STATE_VERSION = 7;
+  const STATE_VERSION = 8;
   const DRAG_THRESHOLD = 7;
 
   const PANEL_META = {
@@ -16,6 +16,7 @@
 
   const DEFAULT_ORDER = ["local", "summary", "timeline", "map", "worldclock", "calendar"];
   const DEFAULT_HIDDEN = [];
+  const DEFAULT_ROW_STARTS = [];
   const DEFAULT_SPANS = {
     local: 4,
     summary: 6,
@@ -155,10 +156,10 @@
     return rowSignatureFromIds(row.map(({ panel }) => panel.dataset.panelId));
   }
 
-  function rowHeightMapFromArray(values, order, sizes, hidden) {
+  function rowHeightMapFromArray(values, order, sizes, hidden, rowStarts = DEFAULT_ROW_STARTS) {
     const result = {};
     if (!Array.isArray(values)) return result;
-    const rows = rowModelFor(order, sizes, hidden);
+    const rows = rowModelFor(order, sizes, hidden, rowStarts);
     values.forEach((value, index) => {
       const height = Math.round(Number(value));
       const row = rows[index];
@@ -174,6 +175,7 @@
       preset.order || DEFAULT_ORDER,
       preset.sizes || {},
       preset.hidden || DEFAULT_HIDDEN,
+      preset.rowStarts || DEFAULT_ROW_STARTS,
     );
   }
 
@@ -203,7 +205,8 @@
         sameNumberMap(state.sizes, preset.sizes || {}) &&
         sameNumberMap(state.rowHeights, presetRowHeights(preset)) &&
         sameStringList(state.order, presetOrder) &&
-        sameStringSet(state.hidden, presetHidden)
+        sameStringSet(state.hidden, presetHidden) &&
+        sameStringSet(state.rowStarts, preset.rowStarts || DEFAULT_ROW_STARTS)
       );
     })?.[0] || null;
   }
@@ -248,6 +251,10 @@
       ? [...new Set(parsed.worldClockHidden.filter((id) => typeof id === "string"))]
       : [];
 
+    const rowStarts = Array.isArray(parsed?.rowStarts)
+      ? [...new Set(parsed.rowStarts.filter((id) => DEFAULT_ORDER.includes(id)))]
+      : DEFAULT_ROW_STARTS.slice();
+
     let rowHeights = {};
     if (Array.isArray(parsed?.rowHeights)) {
       rowHeights = rowHeightMapFromArray(
@@ -255,6 +262,7 @@
         order,
         sizes,
         safeHidden,
+        rowStarts,
       );
     } else if (parsed?.rowHeights && typeof parsed.rowHeights === "object") {
       for (const [key, rawHeight] of Object.entries(parsed.rowHeights)) {
@@ -271,6 +279,7 @@
       hidden: safeHidden,
       sizes,
       worldClockHidden,
+      rowStarts,
       rowHeights,
     };
   }
@@ -306,6 +315,7 @@
       const el = panels.get(id);
       if (!el) return;
       el.style.setProperty("--panel-order", fullIndex);
+      el.classList.toggle("is-row-start", state.rowStarts.includes(id));
       if (hiddenSet.has(id)) {
         el.classList.add("is-hidden-panel");
         el.setAttribute("aria-hidden", "true");
@@ -431,13 +441,20 @@
     const normalized = [...new Set(nextOrder.filter((id) => DEFAULT_ORDER.includes(id)))];
     if (normalized.length !== DEFAULT_ORDER.length) return;
     state.order = normalized;
+    state.rowStarts = normalizeRowStarts(state.rowStarts, normalized);
     pruneRowHeights();
     saveState();
     applyLayout();
   }
 
-  function rowModelFor(order, sizeOverrides, hiddenList = state.hidden) {
+  function rowModelFor(
+    order,
+    sizeOverrides,
+    hiddenList = state.hidden,
+    rowStartList = state.rowStarts,
+  ) {
     const hiddenSet = new Set(hiddenList);
+    const rowStartSet = new Set(rowStartList || []);
     const visible = order.filter((id) => !hiddenSet.has(id));
     const spanById = computeSpans(visible, sizeOverrides);
     const rows = [];
@@ -451,6 +468,7 @@
 
     for (const id of visible) {
       const span = spanById.get(id) ?? MAX_SPAN;
+      if (current.items.length && rowStartSet.has(id)) closeRow();
       if (current.items.length && current.total + span > MAX_SPAN) closeRow();
       current.items.push({ id, span });
       current.total += span;
@@ -461,9 +479,38 @@
     return rows;
   }
 
+  function visibleIdsFor(order = state.order, hidden = state.hidden) {
+    const hiddenSet = new Set(hidden);
+    return order.filter((id) => !hiddenSet.has(id));
+  }
+
+  function normalizeRowStarts(rowStarts, order = state.order, hidden = state.hidden) {
+    const visible = visibleIdsFor(order, hidden);
+    const firstVisible = visible[0];
+    return [...new Set((rowStarts || []).filter((id) => visible.includes(id) && id !== firstVisible))];
+  }
+
+  function rowStartsAfterRemovingDragged(draggedId) {
+    const next = new Set(state.rowStarts || []);
+    const visible = visibleIdsFor();
+    const draggedIndex = visible.indexOf(draggedId);
+
+    if (next.delete(draggedId) && draggedIndex >= 0) {
+      const successor = visible[draggedIndex + 1];
+      if (successor) next.add(successor);
+    }
+
+    return normalizeRowStarts([...next], state.order.filter((id) => id !== draggedId));
+  }
+
+  function pruneRowStarts() {
+    state.rowStarts = normalizeRowStarts(state.rowStarts);
+  }
+
   function pruneRowHeights() {
+    pruneRowStarts();
     const validKeys = new Set(
-      rowModelFor(state.order, state.sizes, state.hidden).map(rowSignatureFromModel),
+      rowModelFor(state.order, state.sizes, state.hidden, state.rowStarts).map(rowSignatureFromModel),
     );
     const next = {};
     for (const [key, height] of Object.entries(state.rowHeights)) {
@@ -491,7 +538,7 @@
   }
 
   function expandPanelIntoFreeSpace(panelId) {
-    const rows = rowModelFor(state.order, state.sizes, state.hidden);
+    const rows = rowModelFor(state.order, state.sizes, state.hidden, state.rowStarts);
     const row = rows.find((candidate) => candidate.items.at(-1)?.id === panelId);
     if (!row) return;
     const freeSpace = MAX_SPAN - row.total;
@@ -512,7 +559,7 @@
     if (!dashboard.classList.contains("is-customizing")) return;
     if (isStackedLayout()) return;
 
-    const rows = rowModelFor(state.order, state.sizes, state.hidden);
+    const rows = rowModelFor(state.order, state.sizes, state.hidden, state.rowStarts);
     for (const row of rows) {
       const freeSpace = MAX_SPAN - row.total;
       const item = row.items.at(-1);
@@ -578,76 +625,214 @@
     });
   }
 
-  function smartSizesForInsertion(draggedId, targetId, placement, nextOrder) {
-    const nextSizes = { ...state.sizes };
-    // En una sola columna el gesto solo reordena. No altera silenciosamente
-    // el ancho de escritorio mientras el usuario organiza la versión móvil.
-    if (isStackedLayout()) return { sizes: nextSizes, joined: false };
+  function shrinkRowToFit(row, nextSizes, requiredSpace) {
+    let remaining = Math.max(0, requiredSpace);
+    const candidates = row.items
+      .map((item) => ({
+        id: item.id,
+        span: clampSpanForPanel(item.id, nextSizes[item.id] ?? item.span),
+        minimum: minimumSpanFor(item.id),
+      }))
+      .sort((left, right) => (right.span - right.minimum) - (left.span - left.minimum));
 
-    const orderWithoutDragged = nextOrder.filter((id) => id !== draggedId);
-    const rows = rowModelFor(orderWithoutDragged, nextSizes, state.hidden);
-    const targetRow = rows.find((row) => row.items.some((item) => item.id === targetId));
-    if (!targetRow) return { sizes: nextSizes, joined: false };
-
-    const targetIndex = targetRow.items.findIndex((item) => item.id === targetId);
-    const currentSpan = configuredSpanFor(draggedId);
-    const minimumSpan = minimumSpanFor(draggedId);
-    let available = 0;
-
-    if (placement === "after") {
-      const prefix = targetRow.items
-        .slice(0, targetIndex + 1)
-        .reduce((total, item) => total + item.span, 0);
-      available = MAX_SPAN - prefix;
-    } else {
-      const prefix = targetRow.items
-        .slice(0, targetIndex)
-        .reduce((total, item) => total + item.span, 0);
-      available = MAX_SPAN - prefix - targetRow.items[targetIndex].span;
+    while (remaining > 0) {
+      const candidate = candidates.find((item) => item.span > item.minimum);
+      if (!candidate) break;
+      candidate.span -= 1;
+      nextSizes[candidate.id] = candidate.span;
+      remaining -= 1;
+      candidates.sort((left, right) => (right.span - right.minimum) - (left.span - left.minimum));
     }
 
-    if (available < minimumSpan) return { sizes: nextSizes, joined: false };
+    return remaining === 0;
+  }
+
+  function forcePairIntoOwnRow(
+    draggedId,
+    targetId,
+    placement,
+    nextOrder,
+    nextSizes,
+    nextRowStarts,
+  ) {
+    const firstId = placement === "before" ? draggedId : targetId;
+    const secondId = placement === "before" ? targetId : draggedId;
+    const firstMinimum = minimumSpanFor(firstId);
+    const secondMinimum = minimumSpanFor(secondId);
+    const firstPreferred = configuredSpanFor(firstId);
+    const secondPreferred = configuredSpanFor(secondId);
+
+    let firstSpan = Math.min(firstPreferred, MAX_SPAN - secondMinimum);
+    let secondSpan = Math.min(secondPreferred, MAX_SPAN - firstSpan);
+    if (secondSpan < secondMinimum) {
+      secondSpan = secondMinimum;
+      firstSpan = Math.max(firstMinimum, MAX_SPAN - secondSpan);
+    }
+
+    nextSizes[firstId] = clampSpanForPanel(firstId, firstSpan);
+    nextSizes[secondId] = clampSpanForPanel(secondId, secondSpan);
+
+    const starts = new Set(nextRowStarts);
+    starts.delete(secondId);
+    starts.add(firstId);
+
+    const visible = visibleIdsFor(nextOrder);
+    const secondIndex = visible.indexOf(secondId);
+    const afterPair = visible[secondIndex + 1];
+    if (afterPair) starts.add(afterPair);
+
+    return normalizeRowStarts([...starts], nextOrder);
+  }
+
+  function layoutForDashboardInsertion(draggedId, targetId, placement, intent) {
+    const nextOrder = orderWithInsertion(draggedId, targetId, placement);
+    const nextSizes = { ...state.sizes };
+    let nextRowStarts = rowStartsAfterRemovingDragged(draggedId);
+
+    if (isStackedLayout()) {
+      return {
+        order: nextOrder,
+        sizes: nextSizes,
+        rowStarts: normalizeRowStarts(nextRowStarts, nextOrder),
+        joined: intent === "side",
+        rowInsert: intent === "row",
+      };
+    }
+
+    if (intent === "row") {
+      const starts = new Set(nextRowStarts);
+      starts.add(draggedId);
+      starts.add(targetId);
+      nextRowStarts = normalizeRowStarts([...starts], nextOrder);
+      return {
+        order: nextOrder,
+        sizes: nextSizes,
+        rowStarts: nextRowStarts,
+        joined: false,
+        rowInsert: true,
+      };
+    }
+
+    const orderWithoutDragged = nextOrder.filter((id) => id !== draggedId);
+    const rows = rowModelFor(
+      orderWithoutDragged,
+      nextSizes,
+      state.hidden,
+      nextRowStarts,
+    );
+    const targetRow = rows.find((row) => row.items.some((item) => item.id === targetId));
+    if (!targetRow) {
+      return {
+        order: nextOrder,
+        sizes: nextSizes,
+        rowStarts: normalizeRowStarts(nextRowStarts, nextOrder),
+        joined: false,
+        rowInsert: false,
+      };
+    }
+
+    const starts = new Set(nextRowStarts);
+    const visibleWithoutDragged = visibleIdsFor(orderWithoutDragged);
+    const targetWasFirst =
+      visibleWithoutDragged[0] === targetId ||
+      starts.has(targetId) ||
+      targetRow.items[0]?.id === targetId;
+    if (placement === "before" && targetWasFirst) {
+      starts.delete(targetId);
+      starts.add(draggedId);
+    } else {
+      starts.delete(draggedId);
+    }
+    nextRowStarts = normalizeRowStarts([...starts], nextOrder);
+
+    const currentSpan = configuredSpanFor(draggedId);
+    const minimumSpan = minimumSpanFor(draggedId);
+    let freeSpace = MAX_SPAN - targetRow.total;
+
+    if (freeSpace < minimumSpan) {
+      const fitted = shrinkRowToFit(targetRow, nextSizes, minimumSpan - freeSpace);
+      if (fitted) {
+        const adjustedRows = rowModelFor(
+          orderWithoutDragged,
+          nextSizes,
+          state.hidden,
+          nextRowStarts,
+        );
+        const adjustedTargetRow = adjustedRows.find((row) =>
+          row.items.some((item) => item.id === targetId),
+        );
+        freeSpace = adjustedTargetRow ? MAX_SPAN - adjustedTargetRow.total : minimumSpan;
+      } else {
+        nextRowStarts = forcePairIntoOwnRow(
+          draggedId,
+          targetId,
+          placement,
+          nextOrder,
+          nextSizes,
+          nextRowStarts,
+        );
+        return {
+          order: nextOrder,
+          sizes: nextSizes,
+          rowStarts: nextRowStarts,
+          joined: true,
+          rowInsert: false,
+        };
+      }
+    }
 
     nextSizes[draggedId] = clampSpanForPanel(
       draggedId,
-      Math.min(currentSpan, available),
+      Math.min(currentSpan, Math.max(minimumSpan, freeSpace)),
     );
-    return { sizes: nextSizes, joined: true };
+
+    return {
+      order: nextOrder,
+      sizes: nextSizes,
+      rowStarts: normalizeRowStarts(nextRowStarts, nextOrder),
+      joined: true,
+      rowInsert: false,
+    };
   }
 
-  function renderDashboardDropPreview(draggedId, targetId, placement) {
+  function renderDashboardDropPreview(draggedId, targetId, placement, intent = "side") {
     if (!targetId || draggedId === targetId) return;
-    const nextOrder = orderWithInsertion(draggedId, targetId, placement);
-    const smartInsertion = smartSizesForInsertion(
+    const nextLayout = layoutForDashboardInsertion(
       draggedId,
       targetId,
       placement,
-      nextOrder,
+      intent,
     );
-    const nextSizes = smartInsertion.sizes;
+    const nextOrder = nextLayout.order;
+    const nextSizes = nextLayout.sizes;
+    const nextRowStarts = nextLayout.rowStarts;
     const hiddenSet = new Set(state.hidden);
     const visible = nextOrder.filter((id) => !hiddenSet.has(id));
     const spanById = computeSpans(visible, nextSizes);
     const previewOrder = visible.indexOf(draggedId);
     const previewSpan = spanById.get(draggedId) ?? DEFAULT_SPANS[draggedId] ?? MAX_SPAN;
-    const nextKey = `${draggedId}:${targetId}:${placement}:${previewSpan}:${smartInsertion.joined}`;
+    const nextKey = `${draggedId}:${targetId}:${placement}:${intent}:${previewSpan}:${nextLayout.joined}:${nextRowStarts.join(",")}`;
 
     dashboardDropState = {
       order: nextOrder,
       sizes: nextSizes,
+      rowStarts: nextRowStarts,
       targetId,
       placement,
-      joined: smartInsertion.joined,
+      intent,
+      joined: nextLayout.joined,
     };
 
     if (nextKey === dashboardPreviewKey) return;
     dashboardPreviewKey = nextKey;
     const previousRects = captureLayoutRects();
+    const rowStartSet = new Set(nextRowStarts);
 
     visible.forEach((id, visibleIndex) => {
       const el = panels.get(id);
       if (!el) return;
       el.style.setProperty("--panel-order", String(visibleIndex));
+      el.classList.toggle("is-row-start", rowStartSet.has(id));
       if (id !== draggedId) {
         el.style.setProperty("--panel-span", String(spanById.get(id) ?? MAX_SPAN));
       }
@@ -656,10 +841,12 @@
     dropPreview.style.setProperty("--panel-order", String(previewOrder));
     dropPreview.style.setProperty("--preview-span", String(previewSpan));
     dropPreview.classList.add("is-visible");
-    dropPreview.classList.toggle("is-expanded", smartInsertion.joined);
-    dropPreview.textContent = smartInsertion.joined
-      ? `Unir ${PANEL_META[draggedId]?.label || "panel"} · ${previewSpan}/${MAX_SPAN}`
-      : `Colocar ${PANEL_META[draggedId]?.label || "panel"}`;
+    dropPreview.classList.toggle("is-expanded", nextLayout.joined);
+    dropPreview.classList.toggle("is-row-insert", nextLayout.rowInsert);
+    dropPreview.classList.toggle("is-row-start", rowStartSet.has(draggedId));
+    dropPreview.textContent = nextLayout.rowInsert
+      ? `Nueva fila · ${PANEL_META[draggedId]?.label || "panel"}`
+      : `Misma fila · ${PANEL_META[draggedId]?.label || "panel"} · ${previewSpan}/${MAX_SPAN}`;
 
     animateLayoutFrom(previousRects);
   }
@@ -670,7 +857,7 @@
     const previousRects = restoreLayout && hadPreview ? captureLayoutRects() : null;
     dashboardDropState = null;
     dashboardPreviewKey = "";
-    dropPreview.classList.remove("is-visible", "is-expanded");
+    dropPreview.classList.remove("is-visible", "is-expanded", "is-row-insert", "is-row-start");
     dropPreview.textContent = "";
     dropPreview.style.removeProperty("--panel-order");
     dropPreview.style.removeProperty("--preview-span");
@@ -683,8 +870,6 @@
   function placementForTarget(targetEl, x, y, mode) {
     const rect = targetEl.getBoundingClientRect();
     if (mode === "list") return y < rect.top + rect.height / 2 ? "before" : "after";
-    if (y < rect.top) return "before";
-    if (y > rect.bottom) return "after";
     return x < rect.left + rect.width / 2 ? "before" : "after";
   }
 
@@ -692,6 +877,48 @@
     const dx = Math.max(rect.left - x, 0, x - rect.right);
     const dy = Math.max(rect.top - y, 0, y - rect.bottom);
     return Math.hypot(dx, dy);
+  }
+
+  function dashboardRowsFromCandidates(candidates) {
+    const rows = [];
+    for (const candidate of [...candidates].sort((a, b) => a.rect.top - b.rect.top || a.rect.left - b.rect.left)) {
+      let row = rows.find((entry) => Math.abs(entry.top - candidate.rect.top) < 8);
+      if (!row) {
+        row = { top: candidate.rect.top, items: [] };
+        rows.push(row);
+      }
+      row.items.push(candidate);
+    }
+    return rows
+      .sort((a, b) => a.top - b.top)
+      .map((row) => ({
+        items: row.items.sort((a, b) => a.rect.left - b.rect.left),
+        top: Math.min(...row.items.map((item) => item.rect.top)),
+        bottom: Math.max(...row.items.map((item) => item.rect.bottom)),
+      }));
+  }
+
+  function findHorizontalRowTarget(candidates, x, y) {
+    const rows = dashboardRowsFromCandidates(candidates);
+    const boardRect = dashboard.getBoundingClientRect();
+    if (x < boardRect.left || x > boardRect.right) return null;
+
+    for (let index = 0; index < rows.length - 1; index += 1) {
+      const upperRow = rows[index];
+      const lowerRow = rows[index + 1];
+      const center = (upperRow.bottom + lowerRow.top) / 2;
+      const gap = Math.max(0, lowerRow.top - upperRow.bottom);
+      const hitRadius = Math.max(12, Math.min(26, gap / 2 + 8));
+      if (Math.abs(y - center) > hitRadius) continue;
+
+      return {
+        el: lowerRow.items[0].el,
+        placement: "before",
+        intent: "row",
+      };
+    }
+
+    return null;
   }
 
   function findDropTarget(itemEl, items, x, y, mode) {
@@ -707,6 +934,9 @@
       const insideDashboard =
         x >= boardRect.left && x <= boardRect.right && y >= boardRect.top && y <= boardRect.bottom;
       if (!insideDashboard) return null;
+
+      const rowTarget = findHorizontalRowTarget(candidates, x, y);
+      if (rowTarget) return rowTarget;
     }
 
     let best = candidates[0];
@@ -722,21 +952,40 @@
     return {
       el: best.el,
       placement: placementForTarget(best.el, x, y, mode),
+      intent: "side",
     };
   }
 
   function updateDropTargetClasses(previousTarget, nextTarget) {
+    const classes = [
+      "is-drop-target",
+      "is-drop-before",
+      "is-drop-after",
+      "is-drop-row-before",
+    ];
     if (previousTarget?.el && previousTarget.el !== nextTarget?.el) {
-      previousTarget.el.classList.remove("is-drop-target", "is-drop-before", "is-drop-after");
+      previousTarget.el.classList.remove(...classes);
     }
     if (!nextTarget?.el) return;
     nextTarget.el.classList.add("is-drop-target");
-    nextTarget.el.classList.toggle("is-drop-before", nextTarget.placement === "before");
-    nextTarget.el.classList.toggle("is-drop-after", nextTarget.placement === "after");
+    nextTarget.el.classList.toggle(
+      "is-drop-before",
+      nextTarget.intent !== "row" && nextTarget.placement === "before",
+    );
+    nextTarget.el.classList.toggle(
+      "is-drop-after",
+      nextTarget.intent !== "row" && nextTarget.placement === "after",
+    );
+    nextTarget.el.classList.toggle("is-drop-row-before", nextTarget.intent === "row");
   }
 
   function clearDropTarget(target) {
-    target?.el?.classList.remove("is-drop-target", "is-drop-before", "is-drop-after");
+    target?.el?.classList.remove(
+      "is-drop-target",
+      "is-drop-before",
+      "is-drop-after",
+      "is-drop-row-before",
+    );
   }
 
   function makeDragGhost(label, x, y) {
@@ -774,6 +1023,7 @@
     state.order = (preset.order || DEFAULT_ORDER).slice();
     state.hidden = (preset.hidden || DEFAULT_HIDDEN).slice();
     state.sizes = cloneSizes(preset.sizes || {});
+    state.rowStarts = (preset.rowStarts || DEFAULT_ROW_STARTS).slice();
     state.rowHeights = presetRowHeights(preset);
     saveState();
     applyLayout();
@@ -1049,6 +1299,7 @@
             draggedId,
             currentTarget.el.dataset.panelId,
             currentTarget.placement,
+            currentTarget.intent || "side",
           );
         } else if (mode === "dashboard") {
           clearDashboardDropPreview({ restoreLayout: true });
@@ -1085,6 +1336,7 @@
           if (mode === "dashboard" && dashboardDropState) {
             state.order = dashboardDropState.order;
             state.sizes = dashboardDropState.sizes;
+            state.rowStarts = dashboardDropState.rowStarts;
             clearDashboardDropPreview();
             pruneRowHeights();
             saveState();
@@ -1520,6 +1772,7 @@
         hidden: DEFAULT_HIDDEN.slice(),
         sizes: {},
         worldClockHidden: [],
+        rowStarts: DEFAULT_ROW_STARTS.slice(),
         rowHeights: {},
       };
       saveState();

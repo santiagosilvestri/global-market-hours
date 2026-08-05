@@ -211,6 +211,11 @@ a {
     transform 160ms ease;
 }
 
+.panel.is-row-start,
+.layout-drop-preview.is-row-start {
+  grid-column-start: 1;
+}
+
 .panel.has-custom-row-height {
   height: var(--custom-row-height);
   min-height: var(--custom-row-height);
@@ -1727,6 +1732,14 @@ a {
     rgba(12, 22, 39, 0.56);
 }
 
+.layout-drop-preview.is-row-insert {
+  border-color: rgba(123, 165, 255, 0.92);
+  color: #f2f6ff;
+  background:
+    linear-gradient(145deg, rgba(53, 111, 231, 0.26), rgba(8, 13, 24, 0.84)),
+    rgba(12, 22, 39, 0.62);
+}
+
 .layout-drag-ghost {
   position: fixed;
   top: 0;
@@ -1785,6 +1798,19 @@ a {
 
 .panel.is-drop-after::after {
   right: 10px;
+}
+
+.panel.is-drop-row-before::before {
+  position: absolute;
+  top: -9px;
+  right: 12px;
+  left: 12px;
+  z-index: 9;
+  height: 3px;
+  border-radius: 999px;
+  background: #7ba5ff;
+  box-shadow: 0 0 0 5px rgba(123, 165, 255, 0.14);
+  content: "";
 }
 
 @keyframes dropPreviewPulse {

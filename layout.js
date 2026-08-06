@@ -2,7 +2,7 @@
   "use strict";
 
   const STORAGE_KEY = "gmh:layout:v4";
-  const STATE_VERSION = 11;
+  const STATE_VERSION = 12;
   const DRAG_THRESHOLD = 7;
 
   const PANEL_META = {
@@ -27,48 +27,48 @@
   };
   const LAYOUT_PRESETS = {
     compact: {
-      label: "Compacta",
-      description: "Vista equilibrada y de baja altura para consultar todo rápidamente.",
+      label: "Equilibrada",
+      description: "Distribución general que mantiene un balance entre horarios, mercados, sesiones y calendario.",
       order: ["local", "summary", "timeline", "map", "worldclock", "calendar"],
       hidden: [],
       sizes: { local: 4, summary: 6, timeline: 5, map: 5, worldclock: 10, calendar: 10 },
       rowHeights: [184, 320, 236, 300],
     },
     intraday: {
-      label: "Intradía",
-      description: "Prioriza mercados activos, sesiones y próximos eventos para operar durante el día.",
+      label: "Compacta",
+      description: "Concentra más información en menos filas y aprovecha mejor el espacio disponible.",
       order: ["local", "worldclock", "summary", "timeline", "calendar", "map"],
       hidden: [],
       sizes: { local: 2, worldclock: 3, summary: 5, timeline: 10, calendar: 7, map: 3 },
       rowHeights: [248, 332, 430],
     },
     macro: {
-      label: "Macro",
-      description: "Da máxima presencia al calendario y conecta los eventos con las sesiones globales.",
+      label: "Ampliada",
+      description: "Da mayor tamaño a los módulos con más contenido para facilitar una lectura pausada.",
       order: ["local", "worldclock", "summary", "calendar", "timeline", "map"],
       hidden: [],
       sizes: { local: 2, worldclock: 3, summary: 5, calendar: 10, timeline: 6, map: 4 },
       rowHeights: [248, 470, 344],
     },
     global: {
-      label: "Global",
-      description: "Organiza la jornada por zonas horarias, mercados y continuidad entre sesiones.",
+      label: "Detallada",
+      description: "Distribuye todos los módulos con espacio suficiente para consultar más información simultáneamente.",
       order: ["worldclock", "summary", "local", "timeline", "map", "calendar"],
       hidden: [],
       sizes: { worldclock: 4, summary: 3, local: 3, timeline: 10, map: 5, calendar: 5 },
       rowHeights: [264, 332, 430],
     },
     focus: {
-      label: "Focus",
-      description: "Elimina distracciones y conserva únicamente los módulos críticos para una decisión rápida.",
+      label: "Minimalista",
+      description: "Reduce elementos secundarios y conserva una vista limpia con la información esencial.",
       order: ["summary", "local", "worldclock", "timeline", "calendar", "map"],
       hidden: ["map"],
       sizes: { summary: 5, local: 2, worldclock: 3, timeline: 10, calendar: 10, map: 4 },
       rowHeights: [248, 326, 470],
     },
     desk: {
-      label: "Desk",
-      description: "Aprovecha monitores anchos con una cabecera operativa y una zona analítica amplia.",
+      label: "Panorámica",
+      description: "Aprovecha pantallas anchas con una distribución horizontal y una zona de análisis amplia.",
       order: ["local", "summary", "worldclock", "timeline", "map", "calendar"],
       hidden: [],
       sizes: { local: 2, summary: 3, worldclock: 5, timeline: 7, map: 3, calendar: 10 },
@@ -675,15 +675,32 @@
     return rects;
   }
 
+  let layoutAnimationGeneration = 0;
+  let activeLayoutAnimations = [];
+
   function animateLayoutFrom(previousRects) {
+    const generation = ++layoutAnimationGeneration;
+
+    // Los divisores se posicionan con getBoundingClientRect(). Durante una
+    // animación FLIP esas medidas incluyen transformaciones transitorias, por
+    // lo que las barras podían aparecer unos instantes en la fila anterior.
+    // Se ocultan y se reconstruyen únicamente cuando termina el movimiento.
+    dashboard.classList.add("is-layout-settling");
+    splitterLayer.innerHTML = "";
+    activeLayoutAnimations.forEach((animation) => animation.cancel());
+    activeLayoutAnimations = [];
+
     window.requestAnimationFrame(() => {
+      if (generation !== layoutAnimationGeneration) return;
+
       previousRects.forEach((previousRect, el) => {
         if (!el.isConnected) return;
         const rect = el.getBoundingClientRect();
         const dx = previousRect.left - rect.left;
         const dy = previousRect.top - rect.top;
         if (Math.abs(dx) < 1 && Math.abs(dy) < 1) return;
-        el.animate(
+
+        const animation = el.animate(
           [
             { transform: `translate(${dx}px, ${dy}px)` },
             { transform: "translate(0, 0)" },
@@ -693,6 +710,18 @@
             easing: "cubic-bezier(.2, .8, .2, 1)",
           },
         );
+        activeLayoutAnimations.push(animation);
+      });
+
+      const finished = activeLayoutAnimations.map((animation) =>
+        animation.finished.catch(() => undefined),
+      );
+
+      Promise.all(finished).then(() => {
+        if (generation !== layoutAnimationGeneration) return;
+        activeLayoutAnimations = [];
+        dashboard.classList.remove("is-layout-settling");
+        scheduleSplitterRefresh({ stable: true });
       });
     });
   }
@@ -1416,6 +1445,7 @@
 
         itemEl.classList.remove("is-dragging");
         dashboard.classList.remove("is-layout-dragging");
+        scheduleSplitterRefresh({ stable: true });
         ghost?.remove();
         clearDropTarget(currentTarget);
 
@@ -1643,12 +1673,40 @@
   }
 
   let splitterFrame = 0;
-  function scheduleSplitterRefresh() {
+  let splitterRefreshPending = false;
+
+  function splitterRefreshIsBlocked() {
+    return (
+      dashboard.classList.contains("is-layout-dragging") ||
+      dashboard.classList.contains("is-layout-settling")
+    );
+  }
+
+  function scheduleSplitterRefresh({ stable = false } = {}) {
+    splitterRefreshPending = true;
     if (splitterFrame) window.cancelAnimationFrame(splitterFrame);
-    splitterFrame = window.requestAnimationFrame(() => {
+
+    const refreshWhenStable = () => {
       splitterFrame = 0;
-      refreshSplitters();
-    });
+      if (splitterRefreshIsBlocked()) return;
+
+      const commitRefresh = () => {
+        splitterFrame = 0;
+        if (splitterRefreshIsBlocked()) return;
+        splitterRefreshPending = false;
+        refreshSplitters();
+      };
+
+      // Dos frames garantizan que CSS Grid, las alturas de contenido y la
+      // animación anterior hayan publicado su geometría definitiva.
+      if (stable) {
+        splitterFrame = window.requestAnimationFrame(commitRefresh);
+      } else {
+        commitRefresh();
+      }
+    };
+
+    splitterFrame = window.requestAnimationFrame(refreshWhenStable);
   }
 
   function setupVerticalSplitter(splitter, leftPanel, rightPanel) {

@@ -1515,9 +1515,12 @@ a {
   transition: opacity 120ms ease;
 }
 
-.dashboard.is-layout-dragging .layout-splitter-layer {
+.dashboard.is-layout-dragging .layout-splitter-layer,
+.dashboard.is-layout-settling .layout-splitter-layer {
+  visibility: hidden;
   opacity: 0;
   pointer-events: none;
+  transition: none;
 }
 
 .layout-splitter {

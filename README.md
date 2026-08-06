@@ -116,7 +116,7 @@ El botón "Personalizar" de la topbar abre un panel para:
 - Mantener el tablero estable mientras se arrastra: la posición de las demás
   tarjetas no cambia durante el gesto. El nuevo orden se aplica una sola vez al
   soltar y utiliza una transición breve.
-- Elegir las plantillas Compacta, Intradía, Macro, Global, Focus o Desk como
+- Elegir las visualizaciones Equilibrada, Compacta, Ampliada, Detallada, Minimalista o Panorámica como
   punto de partida.
 - Mostrar u ocultar módulos y seleccionar qué bolsas aparecen dentro de
   "Horas globales". Siempre queda al menos un módulo visible.
@@ -161,18 +161,18 @@ rápida ("Hoy", "Mañana", "Esta semana" o "Próximo"). Usa la misma lista de
 feriados 2026 que el estado de mercados y el timeline.
 
 
-## Plantillas
+## Visualizaciones
 
-La personalización incluye seis disposiciones predefinidas con nombres de una sola palabra:
+La personalización incluye seis visualizaciones predefinidas con nombres descriptivos:
 
-- Compacta: vista general con filas contenidas.
-- Intradía: prioriza mercados activos, sesiones y calendario.
-- Macro: amplía el calendario económico.
-- Global: enfatiza horarios y continuidad entre sesiones.
-- Focus: oculta el mapa y reduce distracciones.
-- Desk: aprovecha monitores anchos con una distribución tipo mesa de operaciones.
+- Equilibrada: distribución general y balanceada; es la vista recomendada.
+- Compacta: concentra más información en menos filas.
+- Ampliada: da mayor tamaño a los módulos con más contenido.
+- Detallada: mantiene todos los módulos visibles con una lectura más extensa.
+- Minimalista: reduce elementos secundarios y conserva lo esencial.
+- Panorámica: aprovecha monitores anchos y una distribución horizontal.
 
-Cada plantilla guarda orden, visibilidad, anchos y alturas. En móvil los paneles se apilan automáticamente.
+Cada visualización guarda orden, visibilidad, anchos y alturas. En móvil los paneles se apilan automáticamente.
 
 
 ## Mejoras de interacción v16
@@ -206,3 +206,12 @@ Cada plantilla guarda orden, visibilidad, anchos y alturas. En móvil los panele
   recortes por redondeos subpíxel, carga de fuentes y cambios responsivos.
 - Se validaron las seis plantillas, ocultación y reaparición de módulos,
   inserción entre filas, inserción lateral, divisores, persistencia y móvil.
+
+
+## Ajustes de visualización v17
+
+- El selector ahora se denomina **Visualización**.
+- Las opciones son Equilibrada, Compacta, Ampliada, Detallada, Minimalista y Panorámica.
+- Durante el reacomodo de una tarjeta se ocultan los divisores verticales y horizontales.
+- Los divisores se reconstruyen dos frames después de terminar la animación, utilizando la geometría final de CSS Grid.
+- Se cancelan animaciones anteriores antes de iniciar una nueva para evitar posiciones transitorias acumuladas.

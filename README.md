@@ -18,7 +18,7 @@ regulares de diez bolsas importantes del mundo.
 - Incluye Bolsas y Mercados Argentinos (BYMA), Buenos Aires.
 - Adaptación completa para escritorio, tablet y teléfono.
 - Personalización con caída contextual: sobre el divisor crea una fila; al costado une tarjetas en la misma fila.
-- Arrastre desde cualquier zona no interactiva de la tarjeta, no solo desde el controlador de seis puntos.
+- Arrastre desde cualquier zona no interactiva de la tarjeta.
 - Redistribución automática: todas las filas ocupan siempre las diez columnas disponibles.
 - Previsualización estable sin reordenar el tablero continuamente durante el arrastre.
 - Sin backend, claves privadas, compilación ni dependencias.
@@ -96,7 +96,7 @@ solicitud a Google Fonts ni a otro servicio externo en tiempo de ejecución.
 
 El botón "Personalizar" de la topbar abre un panel para:
 
-- Reordenar los 6 módulos desde la lista o directamente sobre el dashboard.
+- Reordenar los 6 módulos con los controles de la lista o directamente sobre el dashboard.
   En modo personalización se puede iniciar el arrastre desde cualquier zona no
   interactiva de la tarjeta, incluido su centro. Los botones, enlaces y campos
   conservan su comportamiento normal.
@@ -175,7 +175,7 @@ La personalización incluye seis disposiciones predefinidas con nombres de una s
 Cada plantilla guarda orden, visibilidad, anchos y alturas. En móvil los paneles se apilan automáticamente.
 
 
-## Mejoras de interacción v15
+## Mejoras de interacción v16
 
 - Las filas se normalizan automáticamente a 10 columnas después de ocultar,
   mover o redimensionar una tarjeta.
@@ -188,10 +188,21 @@ Cada plantilla guarda orden, visibilidad, anchos y alturas. En móvil los panele
 - La distribución y los tamaños continúan guardándose en `localStorage`.
 
 
-## Ajustes de personalización v15
+## Ajustes de personalización v16
 
 - Todas las filas visibles se recalculan para sumar siempre las 10 columnas.
 - Una tarjeta soltada entre filas crea una fila nueva y ocupa el ancho completo.
 - Si se mueve u oculta una tarjeta, las restantes se expanden proporcionalmente.
-- Se eliminaron los botones superpuestos de seis puntos y de expansión.
+- Se eliminaron los botones superpuestos de seis puntos y de expansión, junto con el tirador antiguo de la lista.
 - El arrastre del tablero se realiza desde cualquier zona no interactiva de la tarjeta.
+
+
+## Corrección integral v16
+
+- Se corrigió el inicio explícito de fila para que conserve el ancho configurado.
+  Antes, una tarjeta nueva podía guardar `10/10` pero mostrarse visualmente en
+  una sola columna por una colisión entre propiedades de CSS Grid.
+- Se añadió un margen de seguridad al cálculo de altura mínima para evitar
+  recortes por redondeos subpíxel, carga de fuentes y cambios responsivos.
+- Se validaron las seis plantillas, ocultación y reaparición de módulos,
+  inserción entre filas, inserción lateral, divisores, persistencia y móvil.

@@ -2,7 +2,7 @@
   "use strict";
 
   const STORAGE_KEY = "gmh:layout:v4";
-  const STATE_VERSION = 10;
+  const STATE_VERSION = 11;
   const DRAG_THRESHOLD = 7;
 
   const PANEL_META = {
@@ -1149,19 +1149,6 @@
     renderList();
   }
 
-  function svgHandle() {
-    return (
-      '<svg viewBox="0 0 24 24" aria-hidden="true">' +
-      '<circle cx="9" cy="6" r="1.3" fill="currentColor" stroke="none"/>' +
-      '<circle cx="15" cy="6" r="1.3" fill="currentColor" stroke="none"/>' +
-      '<circle cx="9" cy="12" r="1.3" fill="currentColor" stroke="none"/>' +
-      '<circle cx="15" cy="12" r="1.3" fill="currentColor" stroke="none"/>' +
-      '<circle cx="9" cy="18" r="1.3" fill="currentColor" stroke="none"/>' +
-      '<circle cx="15" cy="18" r="1.3" fill="currentColor" stroke="none"/>' +
-      "</svg>"
-    );
-  }
-
   function renderList() {
     list.innerHTML = "";
     const hiddenSet = new Set(state.hidden);
@@ -1175,11 +1162,6 @@
       const li = document.createElement("li");
       li.className = "customize-row";
       li.dataset.panelId = id;
-
-      const handle = document.createElement("span");
-      handle.className = "customize-row-handle";
-      handle.setAttribute("role", "presentation");
-      handle.innerHTML = svgHandle();
 
       const name = document.createElement("span");
       name.className = "customize-row-name";
@@ -1255,14 +1237,8 @@
       controlsWrap.className = "customize-row-controls";
       controlsWrap.append(sizeWrap, moveWrap, visBtn);
 
-      li.append(handle, name, controlsWrap);
+      li.append(name, controlsWrap);
       list.appendChild(li);
-
-      setupDragging(
-        handle,
-        () => Array.from(list.querySelectorAll("li[data-panel-id]")),
-        { mode: "list" },
-      );
 
       if (id === "worldclock") {
         list.appendChild(renderWorldClockSublist());
@@ -1559,7 +1535,13 @@
     panel.classList.remove("has-custom-row-height");
     panel.classList.add("is-measuring-height");
 
-    const measured = Math.ceil(panel.scrollHeight + 2);
+    const computed = window.getComputedStyle(panel);
+    const borderHeight =
+      (parseFloat(computed.borderTopWidth) || 0) +
+      (parseFloat(computed.borderBottomWidth) || 0);
+    // El pequeño margen evita recortes por redondeos subpíxel, fuentes que
+    // terminan de cargar y cambios de container query al ajustar el ancho.
+    const measured = Math.ceil(panel.scrollHeight + borderHeight + 12);
 
     panel.classList.remove("is-measuring-height");
     if (previousHeight) panel.style.setProperty("--custom-row-height", previousHeight);

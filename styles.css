@@ -212,7 +212,9 @@ a {
 }
 
 .panel.is-row-start {
-  grid-column-start: 1;
+  /* Un salto de fila debe conservar también el span configurado.
+     Definir solo grid-column-start convertía la tarjeta en una columna. */
+  grid-column: 1 / span var(--panel-span, 10);
 }
 
 .panel.has-custom-row-height {
@@ -1923,21 +1925,6 @@ a {
 
 .customize-row.is-drop-after::after {
   bottom: -5px;
-}
-
-.customize-row-handle {
-  display: inline-flex;
-  color: #6c7896;
-  cursor: grab;
-  touch-action: none;
-}
-
-.customize-row-handle svg {
-  width: 15px;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.8;
-  stroke-linecap: round;
 }
 
 .customize-row-name {

@@ -2,7 +2,7 @@
   "use strict";
 
   const STORAGE_KEY = "gmh:layout:v4";
-  const STATE_VERSION = 12;
+  const STATE_VERSION = 13;
   const DRAG_THRESHOLD = 7;
 
   const PANEL_META = {
@@ -25,54 +25,79 @@
     worldclock: 10,
     calendar: 10,
   };
+  const ALL_WORLD_CLOCK_MARKETS = [
+    "sydney",
+    "tokyo",
+    "shanghai",
+    "hong-kong",
+    "mumbai",
+    "london",
+    "frankfurt",
+    "new-york",
+    "sao-paulo",
+    "buenos-aires",
+  ];
+
   const LAYOUT_PRESETS = {
-    compact: {
+    balanced: {
       label: "Equilibrada",
-      description: "Distribución general que mantiene un balance entre horarios, mercados, sesiones y calendario.",
+      style: "balanced",
+      description: "Vista general con todos los módulos y las diez plazas internacionales visibles.",
       order: ["local", "summary", "timeline", "map", "worldclock", "calendar"],
       hidden: [],
-      sizes: { local: 4, summary: 6, timeline: 5, map: 5, worldclock: 10, calendar: 10 },
-      rowHeights: [184, 320, 236, 300],
+      worldClockHidden: [],
+      sizes: { local: 4, summary: 6, timeline: 6, map: 4, worldclock: 10, calendar: 10 },
+      rowHeights: [196, 332, 268, 324],
     },
-    intraday: {
+    compact: {
       label: "Compacta",
-      description: "Concentra más información en menos filas y aprovecha mejor el espacio disponible.",
-      order: ["local", "worldclock", "summary", "timeline", "calendar", "map"],
-      hidden: [],
-      sizes: { local: 2, worldclock: 3, summary: 5, timeline: 10, calendar: 7, map: 3 },
-      rowHeights: [248, 332, 430],
-    },
-    macro: {
-      label: "Ampliada",
-      description: "Da mayor tamaño a los módulos con más contenido para facilitar una lectura pausada.",
-      order: ["local", "worldclock", "summary", "calendar", "timeline", "map"],
-      hidden: [],
-      sizes: { local: 2, worldclock: 3, summary: 5, calendar: 10, timeline: 6, map: 4 },
-      rowHeights: [248, 470, 344],
-    },
-    global: {
-      label: "Detallada",
-      description: "Distribuye todos los módulos con espacio suficiente para consultar más información simultáneamente.",
-      order: ["worldclock", "summary", "local", "timeline", "map", "calendar"],
-      hidden: [],
-      sizes: { worldclock: 4, summary: 3, local: 3, timeline: 10, map: 5, calendar: 5 },
-      rowHeights: [264, 332, 430],
-    },
-    focus: {
-      label: "Minimalista",
-      description: "Reduce elementos secundarios y conserva una vista limpia con la información esencial.",
-      order: ["summary", "local", "worldclock", "timeline", "calendar", "map"],
+      style: "compact",
+      description: "Reduce filas, oculta el mapa y conserva solo cinco relojes globales de referencia.",
+      order: ["local", "summary", "worldclock", "timeline", "calendar", "map"],
       hidden: ["map"],
-      sizes: { summary: 5, local: 2, worldclock: 3, timeline: 10, calendar: 10, map: 4 },
-      rowHeights: [248, 326, 470],
+      worldClockHidden: ["sydney", "shanghai", "hong-kong", "mumbai", "sao-paulo"],
+      sizes: { local: 2, summary: 4, worldclock: 4, timeline: 5, calendar: 5, map: 4 },
+      rowHeights: [252, 438],
     },
-    desk: {
+    expanded: {
+      label: "Ampliada",
+      style: "expanded",
+      description: "Da una fila completa a sesiones y horas globales, con más aire para leer cada módulo.",
+      order: ["local", "summary", "timeline", "worldclock", "map", "calendar"],
+      hidden: [],
+      worldClockHidden: [],
+      sizes: { local: 4, summary: 6, timeline: 10, worldclock: 10, map: 4, calendar: 6 },
+      rowHeights: [214, 372, 326, 478],
+    },
+    detailed: {
+      label: "Detallada",
+      style: "detailed",
+      description: "Muestra todos los módulos y todas las plazas con calendario, mapa y sesiones en filas amplias.",
+      order: ["local", "summary", "worldclock", "timeline", "calendar", "map"],
+      hidden: [],
+      worldClockHidden: [],
+      sizes: { local: 4, summary: 6, worldclock: 10, timeline: 10, calendar: 10, map: 10 },
+      rowHeights: [220, 334, 388, 520, 520],
+    },
+    minimal: {
+      label: "Minimalista",
+      style: "minimal",
+      description: "Conserva únicamente hora local, resumen operativo y línea de sesiones.",
+      order: ["local", "summary", "timeline", "map", "worldclock", "calendar"],
+      hidden: ["map", "worldclock", "calendar"],
+      worldClockHidden: [],
+      sizes: { local: 3, summary: 7, timeline: 10, map: 4, worldclock: 10, calendar: 10 },
+      rowHeights: [210, 312],
+    },
+    panoramic: {
       label: "Panorámica",
-      description: "Aprovecha pantallas anchas con una distribución horizontal y una zona de análisis amplia.",
+      style: "panoramic",
+      description: "Aprovecha monitores anchos, agrupa tres módulos arriba y muestra cinco relojes globales clave.",
       order: ["local", "summary", "worldclock", "timeline", "map", "calendar"],
       hidden: [],
+      worldClockHidden: ["sydney", "shanghai", "hong-kong", "mumbai", "sao-paulo"],
       sizes: { local: 2, summary: 3, worldclock: 5, timeline: 7, map: 3, calendar: 10 },
-      rowHeights: [264, 360, 470],
+      rowHeights: [250, 364, 462],
     },
   };
   const MIN_SPAN = 2;
@@ -86,6 +111,8 @@
     calendar: 2,
   };
   const RESPONSIVE_STACK_QUERY = "(max-width: 760px)";
+  const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)";
+  const COARSE_POINTER_QUERY = "(hover: none), (pointer: coarse)";
   const MIN_ROW_HEIGHT = 96;
   const MAX_ROW_HEIGHT = 720;
   const ROW_HEIGHT_STEP = 12;
@@ -206,6 +233,8 @@
         sameNumberMap(state.rowHeights, presetRowHeights(preset)) &&
         sameStringList(state.order, presetOrder) &&
         sameStringSet(state.hidden, presetHidden) &&
+        sameStringSet(state.worldClockHidden, preset.worldClockHidden || []) &&
+        state.viewStyle === (preset.style || "balanced") &&
         sameStringSet(state.rowStarts, preset.rowStarts || DEFAULT_ROW_STARTS)
       );
     })?.[0] || null;
@@ -248,8 +277,19 @@
     }
 
     const worldClockHidden = Array.isArray(parsed?.worldClockHidden)
-      ? [...new Set(parsed.worldClockHidden.filter((id) => typeof id === "string"))]
+      ? [
+          ...new Set(
+            parsed.worldClockHidden.filter((id) => ALL_WORLD_CLOCK_MARKETS.includes(id)),
+          ),
+        ]
       : [];
+
+    const validViewStyles = new Set(
+      Object.values(LAYOUT_PRESETS).map((preset) => preset.style || "balanced"),
+    );
+    const viewStyle = validViewStyles.has(parsed?.viewStyle)
+      ? parsed.viewStyle
+      : "balanced";
 
     const rowStarts = Array.isArray(parsed?.rowStarts)
       ? [...new Set(parsed.rowStarts.filter((id) => DEFAULT_ORDER.includes(id)))]
@@ -279,6 +319,7 @@
       hidden: safeHidden,
       sizes,
       worldClockHidden,
+      viewStyle,
       rowStarts,
       rowHeights,
     };
@@ -309,6 +350,17 @@
 
   function applyLayout() {
     const hiddenSet = new Set(state.hidden);
+    const viewClasses = [
+      "view-balanced",
+      "view-compact",
+      "view-expanded",
+      "view-detailed",
+      "view-minimal",
+      "view-panoramic",
+    ];
+    dashboard.classList.remove(...viewClasses);
+    dashboard.classList.add(`view-${state.viewStyle || "balanced"}`);
+    dashboard.dataset.viewStyle = state.viewStyle || "balanced";
     const visible = state.order.filter((id) => !hiddenSet.has(id));
     const spanById = computeSpans(visible, state.sizes);
 
@@ -415,6 +467,7 @@
   }
 
   function moveInOrder(id, delta) {
+    const previousRects = captureLayoutRects();
     const idx = state.order.indexOf(id);
     const newIdx = idx + delta;
     if (idx === -1 || newIdx < 0 || newIdx >= state.order.length) return;
@@ -425,6 +478,7 @@
     pruneRowHeights();
     saveState();
     applyLayout();
+    animateLayoutFrom(previousRects);
   }
 
   function orderWithInsertion(draggedId, targetId, placement) {
@@ -439,6 +493,7 @@
 
   function setPanelOrder(nextOrder) {
     if (!Array.isArray(nextOrder)) return;
+    const previousRects = captureLayoutRects();
     const normalized = [...new Set(nextOrder.filter((id) => DEFAULT_ORDER.includes(id)))];
     if (normalized.length !== DEFAULT_ORDER.length) return;
     state.order = normalized;
@@ -447,6 +502,7 @@
     pruneRowHeights();
     saveState();
     applyLayout();
+    animateLayoutFrom(previousRects);
   }
 
   function rowModelFor(
@@ -633,6 +689,7 @@
 
   function setPanelSpan(panelId, span) {
     if (!DEFAULT_ORDER.includes(panelId)) return;
+    const previousRects = captureLayoutRects();
 
     const rows = rowModelFor(state.order, state.sizes, state.hidden, state.rowStarts);
     const row = rows.find((candidate) => candidate.items.some((item) => item.id === panelId));
@@ -663,6 +720,7 @@
     pruneRowHeights();
     saveState();
     applyLayout();
+    animateLayoutFrom(previousRects);
   }
 
   function captureLayoutRects() {
@@ -678,51 +736,106 @@
   let layoutAnimationGeneration = 0;
   let activeLayoutAnimations = [];
 
+  function cancelActiveLayoutAnimations() {
+    activeLayoutAnimations.forEach((animation) => animation.cancel());
+    activeLayoutAnimations = [];
+  }
+
+  function layoutMotionProfile(distance = 0) {
+    if (window.matchMedia(REDUCED_MOTION_QUERY).matches) {
+      return { duration: 0, easing: "linear" };
+    }
+
+    const stacked = isStackedLayout();
+    const coarse = window.matchMedia(COARSE_POINTER_QUERY).matches;
+    const base = stacked ? 135 : coarse ? 155 : 175;
+    const distanceExtra = Math.min(stacked ? 45 : 95, Math.round(distance * 0.09));
+    return {
+      duration: base + distanceExtra,
+      easing: "cubic-bezier(.22, .78, .24, 1)",
+    };
+  }
+
+  function afterStableLayout(callback) {
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(callback);
+    });
+  }
+
+  function finishLayoutAnimation(generation) {
+    if (generation !== layoutAnimationGeneration) return;
+    activeLayoutAnimations = [];
+    afterStableLayout(() => {
+      if (generation !== layoutAnimationGeneration) return;
+      dashboard.classList.remove("is-layout-settling");
+      updateResponsivePanelClasses();
+      applyRowHeights();
+      scheduleSplitterRefresh({ stable: true });
+    });
+  }
+
   function animateLayoutFrom(previousRects) {
     const generation = ++layoutAnimationGeneration;
 
-    // Los divisores se posicionan con getBoundingClientRect(). Durante una
-    // animación FLIP esas medidas incluyen transformaciones transitorias, por
-    // lo que las barras podían aparecer unos instantes en la fila anterior.
-    // Se ocultan y se reconstruyen únicamente cuando termina el movimiento.
+    // La geometría del grid se publica en dos ciclos de render. Esperar esos
+    // ciclos evita medir posiciones intermedias cuando cambian filas, anchos,
+    // contenido visible o clases responsive.
     dashboard.classList.add("is-layout-settling");
     splitterLayer.innerHTML = "";
-    activeLayoutAnimations.forEach((animation) => animation.cancel());
-    activeLayoutAnimations = [];
+    cancelActiveLayoutAnimations();
 
-    window.requestAnimationFrame(() => {
+    afterStableLayout(() => {
       if (generation !== layoutAnimationGeneration) return;
 
-      previousRects.forEach((previousRect, el) => {
+      let maximumDistance = 0;
+      const movements = [];
+      visiblePanelElements().forEach((el) => {
         if (!el.isConnected) return;
         const rect = el.getBoundingClientRect();
+        const previousRect = previousRects.get(el);
+
+        if (!previousRect) {
+          movements.push({ el, dx: 0, dy: 10, entering: true });
+          maximumDistance = Math.max(maximumDistance, 10);
+          return;
+        }
+
         const dx = previousRect.left - rect.left;
         const dy = previousRect.top - rect.top;
-        if (Math.abs(dx) < 1 && Math.abs(dy) < 1) return;
+        const distance = Math.hypot(dx, dy);
+        maximumDistance = Math.max(maximumDistance, distance);
+        if (distance >= 0.75) movements.push({ el, dx, dy, entering: false });
+      });
 
+      const profile = layoutMotionProfile(maximumDistance);
+      if (!movements.length || profile.duration === 0) {
+        finishLayoutAnimation(generation);
+        return;
+      }
+
+      movements.forEach(({ el, dx, dy, entering }) => {
         const animation = el.animate(
           [
-            { transform: `translate(${dx}px, ${dy}px)` },
-            { transform: "translate(0, 0)" },
+            {
+              transform: `translate3d(${dx}px, ${dy}px, 0)`,
+              opacity: entering ? 0 : 0.82,
+            },
+            { transform: "translate3d(0, 0, 0)", opacity: 1 },
           ],
           {
-            duration: 170,
-            easing: "cubic-bezier(.2, .8, .2, 1)",
+            duration: profile.duration,
+            easing: profile.easing,
+            fill: "none",
           },
         );
         activeLayoutAnimations.push(animation);
       });
 
-      const finished = activeLayoutAnimations.map((animation) =>
-        animation.finished.catch(() => undefined),
-      );
-
-      Promise.all(finished).then(() => {
-        if (generation !== layoutAnimationGeneration) return;
-        activeLayoutAnimations = [];
-        dashboard.classList.remove("is-layout-settling");
-        scheduleSplitterRefresh({ stable: true });
-      });
+      Promise.all(
+        activeLayoutAnimations.map((animation) =>
+          animation.finished.catch(() => undefined),
+        ),
+      ).then(() => finishLayoutAnimation(generation));
     });
   }
 
@@ -1109,6 +1222,7 @@
   }
 
   function toggleHidden(id) {
+    const previousRects = captureLayoutRects();
     const hiddenSet = new Set(state.hidden);
     const visibleBefore = visibleIdsFor();
     const hiddenIndex = visibleBefore.indexOf(id);
@@ -1131,20 +1245,25 @@
     pruneRowHeights();
     saveState();
     applyLayout();
+    animateLayoutFrom(previousRects);
   }
 
   function applyPreset(presetName) {
     const preset = LAYOUT_PRESETS[presetName];
     if (!preset) return;
+    const previousRects = captureLayoutRects();
     state.version = STATE_VERSION;
     state.order = (preset.order || DEFAULT_ORDER).slice();
     state.hidden = (preset.hidden || DEFAULT_HIDDEN).slice();
     state.sizes = cloneSizes(preset.sizes || {});
+    state.worldClockHidden = (preset.worldClockHidden || []).slice();
+    state.viewStyle = preset.style || "balanced";
     state.rowStarts = (preset.rowStarts || DEFAULT_ROW_STARTS).slice();
     rebalanceState();
     state.rowHeights = presetRowHeights(preset);
     saveState();
     applyLayout();
+    animateLayoutFrom(previousRects);
   }
 
   function renderPresetControls() {
@@ -1170,11 +1289,14 @@
     if (hiddenSet.has(marketId)) {
       hiddenSet.delete(marketId);
     } else {
+      // El panel nunca queda vacío: al menos una plaza permanece visible.
+      if (hiddenSet.size >= ALL_WORLD_CLOCK_MARKETS.length - 1) return;
       hiddenSet.add(marketId);
     }
     state.worldClockHidden = Array.from(hiddenSet);
     saveState();
     applyWorldClockVisibility();
+    renderPresetControls();
     renderList();
   }
 
@@ -1287,6 +1409,7 @@
       document.querySelectorAll(".world-clock-card[data-market-id]"),
     );
     const hiddenSet = new Set(state.worldClockHidden);
+    const visibleMarketCount = Math.max(0, cards.length - hiddenSet.size);
 
     if (!cards.length) {
       const empty = document.createElement("p");
@@ -1315,6 +1438,7 @@
       const input = document.createElement("input");
       input.type = "checkbox";
       input.checked = !isHidden;
+      input.disabled = !isHidden && visibleMarketCount <= 1;
       input.addEventListener("change", () => toggleWorldClockMarket(marketId));
 
       const track = document.createElement("span");
@@ -1933,18 +2057,21 @@
 
   if (resetBtn) {
     resetBtn.addEventListener("click", () => {
+      const previousRects = captureLayoutRects();
       state = {
         version: STATE_VERSION,
         order: DEFAULT_ORDER.slice(),
         hidden: DEFAULT_HIDDEN.slice(),
         sizes: {},
         worldClockHidden: [],
+        viewStyle: "balanced",
         rowStarts: DEFAULT_ROW_STARTS.slice(),
         rowHeights: {},
       };
       rebalanceState();
       saveState();
       applyLayout();
+      animateLayoutFrom(previousRects);
     });
   }
 

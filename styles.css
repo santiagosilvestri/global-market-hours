@@ -37,6 +37,11 @@
   --amber: #f2b84b;
   --label-width: 104px;
   --shadow: 0 22px 60px rgba(0, 0, 0, 0.24);
+  --motion-fast: 140ms;
+  --motion-medium: 210ms;
+  --motion-slow: 300ms;
+  --motion-ease: cubic-bezier(.22, .78, .24, 1);
+  --motion-ease-out: cubic-bezier(.16, 1, .3, 1);
   --font-ui:
     ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
     sans-serif;
@@ -204,11 +209,11 @@ a {
     var(--panel);
   box-shadow: var(--shadow);
   transition:
-    box-shadow 160ms ease,
-    filter 160ms ease,
-    opacity 160ms ease,
-    outline-color 160ms ease,
-    transform 160ms ease;
+    box-shadow var(--motion-medium) var(--motion-ease),
+    filter var(--motion-fast) ease,
+    opacity var(--motion-fast) ease,
+    outline-color var(--motion-fast) ease,
+    transform var(--motion-medium) var(--motion-ease);
 }
 
 .panel.is-row-start {
@@ -533,9 +538,9 @@ a {
   cursor: pointer;
   font-size: 0.68rem;
   transition:
-    border-color 160ms ease,
-    color 160ms ease,
-    background 160ms ease;
+    border-color var(--motion-fast) ease,
+    color var(--motion-fast) ease,
+    background var(--motion-fast) ease;
 }
 
 .location-button:hover {
@@ -906,8 +911,8 @@ a {
   box-shadow: inset 0 0 12px color-mix(in srgb, var(--market-color), transparent 78%);
   opacity: 0.58;
   transition:
-    opacity 220ms ease,
-    box-shadow 220ms ease;
+    opacity var(--motion-medium) ease,
+    box-shadow var(--motion-medium) ease;
 }
 
 .session-bar.is-active {
@@ -1093,11 +1098,11 @@ a {
   cursor: pointer;
   transform: translate(-50%, -50%);
   transition:
-    background 220ms ease,
-    border-color 220ms ease,
-    box-shadow 220ms ease,
-    opacity 220ms ease,
-    transform 160ms ease;
+    background var(--motion-medium) ease,
+    border-color var(--motion-medium) ease,
+    box-shadow var(--motion-medium) ease,
+    opacity var(--motion-medium) ease,
+    transform var(--motion-fast) var(--motion-ease);
 }
 
 .map-marker.is-closed {
@@ -1212,6 +1217,11 @@ a {
   border: 1px solid var(--panel-border);
   border-radius: 12px;
   background: rgba(255, 255, 255, 0.02);
+  transition:
+    background var(--motion-medium) ease,
+    border-color var(--motion-fast) ease,
+    opacity var(--motion-fast) ease,
+    transform var(--motion-medium) var(--motion-ease);
 }
 
 .world-clock-card::before {
@@ -1348,6 +1358,10 @@ a {
   align-items: center;
   gap: 12px;
   padding: 12px 13px 12px 15px;
+  transition:
+    border-color var(--motion-fast) ease,
+    background var(--motion-fast) ease,
+    transform var(--motion-medium) var(--motion-ease);
 }
 
 .holiday-item::before {
@@ -1415,6 +1429,95 @@ a {
 }
 
 /* ---------------------------------------------------------------------- */
+/* Variantes de visualización                                             */
+/* ---------------------------------------------------------------------- */
+
+/* Compacta: elimina texto secundario y feriados internos para concentrar
+   los datos principales en dos filas. El mapa ya se oculta desde el preset. */
+.dashboard.view-compact .panel-subtitle,
+.dashboard.view-compact .summary-description,
+.dashboard.view-compact .wc-holiday,
+.dashboard.view-compact .heading-note {
+  display: none;
+}
+
+.dashboard.view-compact .summary-card {
+  gap: 10px;
+  padding-inline: 14px;
+}
+
+.dashboard.view-compact .world-clock-grid,
+.dashboard.view-panoramic .world-clock-grid {
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.dashboard.view-compact .world-clock-card,
+.dashboard.view-panoramic .world-clock-card {
+  padding: 10px 11px 10px 14px;
+}
+
+.dashboard.view-compact .holiday-list {
+  grid-template-columns: 1fr;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+/* Ampliada: mantiene todos los detalles y aumenta el aire interno para una
+   lectura más pausada sin alterar la adaptación por ancho del panel. */
+.dashboard.view-expanded .timeline-panel,
+.dashboard.view-expanded .worldclock-panel,
+.dashboard.view-expanded .calendar-panel {
+  padding-inline: clamp(18px, 2.2vw, 30px);
+}
+
+/* Detallada: conserva textos, feriados y módulos completos. Al ocupar filas
+   anchas, las listas aprovechan columnas un poco más grandes. */
+.dashboard.view-detailed .world-clock-grid {
+  grid-template-columns: repeat(auto-fit, minmax(178px, 1fr));
+}
+
+.dashboard.view-detailed .holiday-list {
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+}
+
+/* Minimalista: solo quedan hora local, resumen y sesiones. También se quita
+   microcopy secundaria para que los tres módulos sean realmente esenciales. */
+.dashboard.view-minimal .panel-subtitle,
+.dashboard.view-minimal .summary-description,
+.dashboard.view-minimal .heading-note,
+.dashboard.view-minimal .map-key {
+  display: none;
+}
+
+.dashboard.view-minimal .summary-card {
+  padding-block: 14px;
+}
+
+.dashboard.view-minimal .timeline-panel {
+  padding-bottom: 18px;
+}
+
+/* Panorámica: prioriza lectura horizontal. Los relojes clave se definen en
+   el preset y se retira texto auxiliar para evitar altura innecesaria. */
+.dashboard.view-panoramic .panel-subtitle,
+.dashboard.view-panoramic .summary-description,
+.dashboard.view-panoramic .wc-holiday {
+  display: none;
+}
+
+.dashboard.view-panoramic .summary-card {
+  grid-template-columns: 38px minmax(0, 1fr);
+  gap: 9px;
+  padding-inline: 12px;
+}
+
+.dashboard.view-panoramic .summary-icon {
+  width: 38px;
+  height: 38px;
+}
+
+/* ---------------------------------------------------------------------- */
 /* Personalización del layout                                             */
 /* ---------------------------------------------------------------------- */
 
@@ -1431,9 +1534,9 @@ a {
   font-size: 0.68rem;
   font-weight: 560;
   transition:
-    border-color 160ms ease,
-    color 160ms ease,
-    background 160ms ease;
+    border-color var(--motion-fast) ease,
+    color var(--motion-fast) ease,
+    background var(--motion-fast) ease;
 }
 
 .customize-toggle:hover {
@@ -1512,7 +1615,7 @@ a {
   inset: 0;
   z-index: 9;
   pointer-events: none;
-  transition: opacity 120ms ease;
+  transition: opacity var(--motion-fast) ease;
 }
 
 .dashboard.is-layout-dragging .layout-splitter-layer,
@@ -1545,9 +1648,9 @@ a {
   background: rgba(8, 13, 24, 0.84);
   box-shadow: 0 10px 24px rgba(0, 0, 0, 0.2);
   transition:
-    border-color 140ms ease,
-    background 140ms ease,
-    transform 140ms ease;
+    border-color var(--motion-fast) ease,
+    background var(--motion-fast) ease,
+    transform var(--motion-fast) var(--motion-ease);
 }
 
 .layout-splitter:hover::before,
@@ -1669,7 +1772,7 @@ a {
 
 .layout-drop-preview.is-visible {
   display: flex;
-  animation: dropPreviewEnter 130ms ease-out both;
+  animation: dropPreviewEnter var(--motion-fast) var(--motion-ease-out) both;
 }
 
 .layout-drop-preview.is-side-insert {
@@ -1713,6 +1816,12 @@ a {
   pointer-events: none;
   text-overflow: ellipsis;
   white-space: nowrap;
+  will-change: transform;
+}
+
+.dashboard.is-layout-settling .panel,
+.panel.is-dragging {
+  will-change: transform, opacity;
 }
 
 .panel.is-dragging {
@@ -1777,7 +1886,7 @@ a {
   width: min(1920px, 100%);
   margin: 0 auto;
   padding: 0 16px;
-  transition: max-height 220ms ease;
+  transition: max-height var(--motion-medium) var(--motion-ease);
 }
 
 .customize-drawer.is-open {
@@ -1870,9 +1979,9 @@ a {
   font-size: 0.7rem;
   font-weight: 620;
   transition:
-    border-color 140ms ease,
-    color 140ms ease,
-    background 140ms ease;
+    border-color var(--motion-fast) ease,
+    color var(--motion-fast) ease,
+    background var(--motion-fast) ease;
 }
 
 .customize-preset:hover,
@@ -2069,7 +2178,7 @@ a {
   border: 1px solid rgba(113, 145, 203, 0.3);
   border-radius: 999px;
   background: rgba(12, 22, 39, 0.8);
-  transition: background 160ms ease;
+  transition: background var(--motion-fast) ease;
 }
 
 .customize-switch-track::after {
@@ -2082,8 +2191,8 @@ a {
   border-radius: 50%;
   background: #8b96ac;
   transition:
-    transform 160ms ease,
-    background 160ms ease;
+    transform var(--motion-fast) var(--motion-ease),
+    background var(--motion-fast) ease;
 }
 
 .customize-switch input:checked + .customize-switch-track {
@@ -2457,6 +2566,47 @@ a {
   .marker-label {
     font-size: 0.5rem;
   }
+}
+
+@media (max-width: 760px) {
+  :root {
+    --motion-fast: 110ms;
+    --motion-medium: 165ms;
+    --motion-slow: 220ms;
+  }
+
+  .layout-drop-preview {
+    border-radius: 12px;
+  }
+
+  .dashboard.view-compact .panel-subtitle,
+  .dashboard.view-panoramic .panel-subtitle {
+    display: block;
+  }
+}
+
+@media (hover: none), (pointer: coarse) {
+  .panel,
+  .layout-drop-preview,
+  .customize-drawer,
+  .customize-preset,
+  .customize-switch-track,
+  .customize-switch-track::after {
+    transition-duration: var(--motion-fast);
+  }
+
+  .map-marker::after {
+    animation-duration: 2.8s;
+  }
+
+  .layout-drop-preview.is-visible {
+    animation-name: dropPreviewFade;
+  }
+}
+
+@keyframes dropPreviewFade {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -116,8 +116,15 @@ El botón "Personalizar" de la topbar abre un panel para:
 - Mantener el tablero estable mientras se arrastra: la posición de las demás
   tarjetas no cambia durante el gesto. El nuevo orden se aplica una sola vez al
   soltar y utiliza una transición breve.
-- Elegir las visualizaciones Equilibrada, Compacta, Ampliada, Detallada, Minimalista o Panorámica como
-  punto de partida.
+- Elegir seis visualizaciones funcionalmente diferentes como punto de partida:
+  - **Equilibrada:** todos los módulos y las diez plazas visibles.
+  - **Compacta:** dos filas, sin mapa y con cinco relojes globales principales.
+  - **Ampliada:** sesiones y horas globales en filas completas, con mayor espacio de lectura.
+  - **Detallada:** todos los módulos, todas las plazas y filas amplias para mapa y calendario.
+  - **Minimalista:** solo hora local, resumen y línea global de sesiones.
+  - **Panorámica:** composición horizontal para monitor ancho y cinco relojes de referencia.
+- Las animaciones de reordenamiento usan una transición adaptativa: más breve en móvil y táctil,
+  respetan `prefers-reduced-motion` y mantienen ocultos los divisores hasta que la geometría final esté estable.
 - Mostrar u ocultar módulos y seleccionar qué bolsas aparecen dentro de
   "Horas globales". Siempre queda al menos un módulo visible.
 - Restablecer el orden, los anchos y las alturas originales.
